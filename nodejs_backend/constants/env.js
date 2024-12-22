@@ -13,6 +13,7 @@ export const MYSQL = {
   USER: process.env.MYSQLUSER,
   PASS: process.env.MYSQLPASSWORD,
   DB: process.env.MYSQLDATABASE,
+  DIALECT: "mysql",
 };
 
 export const MONGODB = {
