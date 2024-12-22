@@ -6,3 +6,4 @@ tests
 */.env
 .env
 */node_modules
+*/trash.js
