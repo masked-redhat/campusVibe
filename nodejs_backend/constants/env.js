@@ -23,6 +23,19 @@ export const MONGODB = {
   URL: process.env.MONGO_URL,
 };
 
-const env = { backend: BACKEND, mysql: MYSQL, mongodb: MONGODB };
+export const NODEMAILER = {
+  GOOGLE: {
+    PORT: 465,
+    EMAIL: process.env.GOOGLE_EMAIL,
+    PASS: process.env.GOOGLE_PASSWORD,
+  },
+};
+
+const env = {
+  backend: BACKEND,
+  mysql: MYSQL,
+  mongodb: MONGODB,
+  nodemailer: NODEMAILER,
+};
 
 export default env;
