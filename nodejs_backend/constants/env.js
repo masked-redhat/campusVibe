@@ -6,6 +6,9 @@ export const BACKEND = {
   SECRET: {
     TOKEN: process.env.TOKENSECRETKEY,
   },
+  PASSWORD: {
+    SALT: 10,
+  },
 };
 
 export const MYSQL = {
