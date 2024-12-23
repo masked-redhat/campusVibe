@@ -24,11 +24,7 @@ export const MONGODB = {
 };
 
 export const NODEMAILER = {
-  GOOGLE: {
-    PORT: 465,
-    EMAIL: process.env.GOOGLE_EMAIL,
-    PASS: process.env.GOOGLE_PASSWORD,
-  },
+    // TODO: Add Google OAuth Credentials for access.
 };
 
 const env = {
