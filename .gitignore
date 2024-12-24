@@ -1,10 +1,11 @@
-*/.git
+**/.git
 .git
 .vs_code
 vs_code
 tests
-*/.env
+**/.env
 .env
-*/node_modules
-*/trash.js
-*/plan.*
+**/node_modules
+**/trash.js
+**/plan.*
+**/*.py
