@@ -6,4 +6,8 @@ router.post("/", (req, res) => {});
 
 router.post("/new", (req, res) => {});
 
-export const loginRouter = router;
+router.all("*", (_, res) => {
+  res.sendStatus(405);
+});
+
+export const LoginRouter = router;

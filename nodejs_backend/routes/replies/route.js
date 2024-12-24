@@ -10,4 +10,8 @@ router.put("/", (req, res) => {});
 
 router.delete("/", (req, res) => {});
 
-export const repliesRouter = router;
+router.all("*", (_, res) => {
+  res.sendStatus(405);
+});
+
+export const RepliesRouter = router;

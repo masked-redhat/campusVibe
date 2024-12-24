@@ -4,4 +4,8 @@ const router = Router();
 
 router.get("/", (req, res) => {});
 
-export const feedRouter = router;
+router.all("*", (_, res) => {
+  res.sendStatus(405);
+});
+
+export const FeedRouter = router;

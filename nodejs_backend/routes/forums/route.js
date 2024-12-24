@@ -12,4 +12,8 @@ router.put("/", (req, res) => {});
 
 router.delete("/", (req, res) => {});
 
-export const forumsRouter = router;
+router.all("*", (_, res) => {
+  res.sendStatus(405);
+});
+
+export const ForumsRouter = router;

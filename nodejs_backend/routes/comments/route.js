@@ -10,4 +10,8 @@ router.put("/", (req, res) => {});
 
 router.delete("/", (req, res) => {});
 
-export const commentsRouter = router;
+router.all("*", (_, res) => {
+  res.sendStatus(405);
+});
+
+export const CommentsRouter = router;

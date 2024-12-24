@@ -6,4 +6,8 @@ router.get("/", (req, res) => {});
 
 router.post("/", (req, res) => {});
 
-export const feedbackRouter = router;
+router.all("*", (_, res) => {
+  res.sendStatus(405);
+});
+
+export const FeedbackRouter = router;

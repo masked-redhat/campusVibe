@@ -4,4 +4,8 @@ const router = Router();
 
 router.get("/", (req, res) => {});
 
-export const logoutRouter = router;
+router.all("*", (_, res) => {
+  res.sendStatus(405);
+});
+
+export const LogoutRouter = router;

@@ -10,4 +10,8 @@ router.patch("/", (req, res) => {});
 
 router.delete("/", (req, res) => {});
 
-export const jobsRouter = router;
+router.all("*", (_, res) => {
+  res.sendStatus(405);
+});
+
+export const JobsRouter = router;

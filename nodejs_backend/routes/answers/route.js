@@ -12,4 +12,8 @@ router.patch("/", (req, res) => {});
 
 router.delete("/", (req, res) => {});
 
-export const answersRouter = router;
+router.all("*", (_, res) => {
+  res.sendStatus(405);
+});
+
+export const AnswersRouter = router;
