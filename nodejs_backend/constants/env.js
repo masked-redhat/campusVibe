@@ -11,7 +11,7 @@ export const BACKEND = {
   },
 };
 
-export const MYSQL = {
+const MYSQL = {
   HOST: process.env.MYSQLHOST,
   USER: process.env.MYSQLUSER,
   PASS: process.env.MYSQLPASSWORD,
@@ -19,17 +19,27 @@ export const MYSQL = {
   DIALECT: "mysql",
 };
 
+const POSTGRESQL = {
+  HOST: process.env.POSTGRESERVER,
+  USER: process.env.POSTGREUSERNAME,
+  PASS: process.env.POSTGREPASSWORD,
+  DB: process.env.POSTGREDATABASE,
+  DIALECT: "postgres",
+};
+
+export const DATABASE = POSTGRESQL;
+
 export const MONGODB = {
   URL: process.env.MONGO_URL,
 };
 
 export const NODEMAILER = {
-    // TODO: Add Google OAuth Credentials for access.
+  // TODO: Add Google OAuth Credentials for access.
 };
 
 const env = {
   backend: BACKEND,
-  mysql: MYSQL,
+  db: DATABASE,
   mongodb: MONGODB,
   nodemailer: NODEMAILER,
 };

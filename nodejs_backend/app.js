@@ -1,7 +1,7 @@
 // Import Modules
 import express from "express";
 import env from "./constants/env.js";
-import { connectToMysql } from "./db/sql/connection.js";
+import { connectToSqlDatabase } from "./db/sql/connection.js";
 import { connectToMongo } from "./db/mongodb/connection.js";
 import Routes from "./routes/router.js";
 const r = Routes;
@@ -11,7 +11,7 @@ const app = express();
 const port = env.backend.PORT;
 
 // Connect databases
-await connectToMysql();
+await connectToSqlDatabase();
 await connectToMongo();
 
 // Routes

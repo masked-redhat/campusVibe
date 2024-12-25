@@ -23,6 +23,7 @@
         "mysql2": "^3.11.5",
         "nodejs_backend": "file:",
         "nodemailer": "^6.9.16",
+        "pg": "^8.13.1",
         "sequelize": "^6.37.5"
     },
     "devDependencies": {
