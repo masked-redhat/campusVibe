@@ -1,16 +1,16 @@
-import { LoginRouter } from "./route/login.js";
-import { LogoutRouter } from "./route/logout.js";
-import { PostsRouter } from "./route/posts.js";
-import { NewsRouter } from "./route/news.js";
-import { JobsRouter } from "./route/jobs.js";
-import { ForumsRouter } from "./route/forums.js";
-import { CommentsRouter } from "./route/comments.js";
-import { RepliesRouter } from "./route/replies.js";
-import { AnswersRouter } from "./route/answers.js";
-import { FeedRouter } from "./route/feed.js";
-import { ArticlesRouter } from "./route/articles.js";
-import { ProfileRouter } from "./route/profile.js";
-import { FeedbackRouter } from "./route/feedback.js";
+import { LoginRouter } from "./login/route.js";
+import { LogoutRouter } from "./logout/route.js";
+import { PostsRouter } from "./posts/route.js";
+import { NewsRouter } from "./news/route.js";
+import { JobsRouter } from "./jobs/route.js";
+import { ForumsRouter } from "./forums/route.js";
+import { CommentsRouter } from "./comments/route.js";
+import { RepliesRouter } from "./replies/route.js";
+import { AnswersRouter } from "./answers/route.js";
+import { FeedRouter } from "./feed/route.js";
+import { ArticlesRouter } from "./articles/route.js";
+import { ProfileRouter } from "./profile/route.js";
+import { FeedbackRouter } from "./feedback/route.js";
 
 const Router = {
   LoginRouter,
