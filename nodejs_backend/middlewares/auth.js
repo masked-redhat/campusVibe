@@ -6,8 +6,6 @@ import auth from "../controllers/jwt_auth.js";
 import checks from "../utils/checks.js";
 import { COOKIE } from "../constants/auth.js";
 import User from "../models/ORM/user.js";
-import codes from "../utils/codes.js";
-import { MESSAGES as m } from "../constants/messages/auth.js";
 
 const REFRESHTOKEN = "refreshToken",
   USERNAME = "username";
