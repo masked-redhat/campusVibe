@@ -11,16 +11,6 @@ export const BACKEND = {
   },
 };
 
-const JWT = {
-  SECRET: BACKEND.SECRET.TOKEN,
-  EXPIRY: {
-    ACCESSTOKEN: 24 * 60 * 60 * 1000,
-    REFRESHTOKEN: 7 * 24 * 60 * 60 * 1000,
-  },
-};
-
-export const TOKEN = JWT;
-
 const MYSQL = {
   HOST: process.env.MYSQLHOST,
   USER: process.env.MYSQLUSER,
@@ -52,7 +42,6 @@ const env = {
   db: DATABASE,
   mongodb: MONGODB,
   nodemailer: NODEMAILER,
-  token: TOKEN,
 };
 
 export default env;
