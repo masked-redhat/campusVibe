@@ -6,6 +6,9 @@ import auth from "../controllers/jwt_auth.js";
 import checks from "../utils/checks.js";
 import { COOKIE } from "../constants/auth.js";
 import User from "../models/ORM/user.js";
+import Tokens from "../models/ODM/tokens.js";
+import { serve } from "../utils/response.js";
+import codes from "../utils/codes.js";
 
 const REFRESHTOKEN = "refreshToken",
   USERNAME = "username";
@@ -55,16 +58,29 @@ const verifyUser = async (entity) => {
   if (checks.isNuldefined(entity)) return false;
 
   const user = await User.findOne({ where: entity });
+  
   if (checks.isNuldefined(user)) return false;
   if (user.blacklisted === true) return false;
   if (user.email && user.email_verified === false) return false;
   return true;
 };
 
+const checkTokensAgainstDB = async (token) => {
+  if (token === null) return true;
+  const res = await Tokens.findOne({ token });
+  if (checks.isNuldefined(res)) return true;
+  return false;
+};
+
 const validateUser = async (req, res, next) => {
   const tokens = getTokensFromRequest(req);
 
   // first check access token
+  if (!(await checkTokensAgainstDB(tokens.accessToken))) {
+    serve(res, codes.BAD_REQUEST, "Code cannot be used");
+    return;
+  }
+
   const validator = new auth.JwtValidator(tokens.accessToken, verifyUser);
   await validator.validate();
 
@@ -75,6 +91,11 @@ const validateUser = async (req, res, next) => {
   }
 
   // then check the refresh token
+  if (!(await checkTokensAgainstDB(tokens.refreshToken))) {
+    serve(res, codes.BAD_REQUEST, "Code cannot be used");
+    return;
+  }
+
   validator.token = tokens.refreshToken;
   await validator.validate();
 
@@ -90,14 +111,13 @@ const validateUser = async (req, res, next) => {
     return;
   }
 
-  res
-    .status(validator.getStatusCode())
-    .json({ message: validator.getMessage() });
+  serve(res, validator.getStatusCode(), validator.getMessage());
 };
 
 const authorization = {
   setupAuth,
   validateUser,
+  getTokens: getTokensFromRequest,
 };
 
 export default authorization;
