@@ -21,7 +21,7 @@ const setupAuth = (userData, res) => {
     maxAge: COOKIE.MAXAGE,
   });
 
-  return tokens.refreshToken;
+  return tokens.accessToken;
 };
 
 const getTokensFromRequest = (req) => {
@@ -50,11 +50,14 @@ const getRefreshToken = (req) => {
 };
 
 const verifyUser = async (entity) => {
+  delete entity["iat"];
+  delete entity["exp"];
   if (checks.isNuldefined(entity)) return false;
 
   const user = await User.findOne({ where: entity });
   if (checks.isNuldefined(user)) return false;
   if (user.blacklisted === true) return false;
+  if (user.email && user.email_verified === false) return false;
   return true;
 };
 
@@ -68,6 +71,7 @@ const validateUser = async (req, res, next) => {
   if (validator.getVerificationStatus() === true) {
     req.USERNAME = validator.getEntityInfo()[USERNAME];
     next();
+    return;
   }
 
   // then check the refresh token
@@ -83,6 +87,7 @@ const validateUser = async (req, res, next) => {
     req.accessToken = accessToken;
     req.USERNAME = validator.getEntityInfo()[USERNAME];
     next();
+    return;
   }
 
   res
