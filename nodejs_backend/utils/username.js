@@ -16,6 +16,6 @@ function validate(username) {
   }
 }
 
-const username = { validate };
+const user = { validate };
 
-export default username;
+export default user;
