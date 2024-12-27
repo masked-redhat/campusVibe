@@ -6,6 +6,7 @@ import { connectToMongo } from "./db/mongodb/connection.js";
 import Routes from "./routes/router.js";
 import cookieParser from "cookie-parser";
 import authorization from "./middlewares/auth.js";
+import { syncDB } from "./sync/syncing.js";
 const r = Routes,
   auth = authorization.validateUser;
 
@@ -16,6 +17,9 @@ const port = env.backend.PORT;
 // Connect databases
 await connectToSqlDatabase();
 await connectToMongo();
+
+// Start Syncing
+syncDB();
 
 // Global Middlewares
 app.use(express.json());
