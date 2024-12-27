@@ -60,8 +60,7 @@ class JwtValidator {
   }
 
   validate = async () => {
-    let entity = null,
-      token = this.token;
+    let token = this.token;
 
     if (token === null) {
       this.#statusCode = codes.clientError.BAD_REQUEST;
@@ -70,9 +69,9 @@ class JwtValidator {
     }
 
     try {
-      entity = jwt.verify(token, JWT_SECRET_KEY);
+      this.#entity = jwt.verify(token, JWT_SECRET_KEY);
 
-      this.#verified = (await this.verifyEntity(entity)) === true;
+      this.#verified = (await this.verifyEntity(this.#entity)) === true;
 
       this.#statusCode = this.#verified ? codes.OK : codes.FORBIDDEN;
       this.#message = this.#verified ? message.OK : message.VERIFICATION_FAILED;
