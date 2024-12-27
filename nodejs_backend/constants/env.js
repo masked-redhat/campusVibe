@@ -2,12 +2,17 @@ import dotenv from "dotenv";
 dotenv.config();
 
 export const BACKEND = {
+  HOST: process.env.HOST,
   PORT: process.env.PORT,
   SECRET: {
     TOKEN: process.env.TOKENSECRETKEY,
+    EMAIL: process.env.EMAILSECRET,
   },
   PASSWORD: {
     SALT: 10,
+  },
+  EMAIL: {
+    SALT: "HOLA MY FRIEND",
   },
 };
 
@@ -35,13 +40,25 @@ export const MONGODB = {
 
 export const NODEMAILER = {
   // TODO: Add Google OAuth Credentials for access.
+  EMAIL: process.env.GOOGLE_EMAIL,
+  TOKEN: {
+    REFRESH: process.env.GOOGLE_REFRESH_TOKEN,
+  },
+  CLIENT: {
+    ID: process.env.GOOGLE_CLIENT_ID,
+    SECRET: process.env.GOOGLE_CLIENT_SECRET,
+  },
+  URL: "https://developers.google.com/oauthplayground",
 };
+
+export const APPURL = `http://${BACKEND.HOST}:${BACKEND.PORT}`;
 
 const env = {
   backend: BACKEND,
   db: DATABASE,
   mongodb: MONGODB,
   nodemailer: NODEMAILER,
+  url: APPURL,
 };
 
 export default env;
