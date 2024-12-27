@@ -1,5 +1,8 @@
 const isNuldefined = (entity) => {
   if (entity instanceof String) entity = entity.trim();
+  try {
+    return entity.length === 0;
+  } catch (err) {}
   return (
     entity === "" ||
     entity === undefined ||
