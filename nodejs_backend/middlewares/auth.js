@@ -58,7 +58,7 @@ const verifyUser = async (entity) => {
   if (checks.isNuldefined(entity)) return false;
 
   const user = await User.findOne({ where: entity });
-  
+
   if (checks.isNuldefined(user)) return false;
   if (user.blacklisted === true) return false;
   if (user.email && user.email_verified === false) return false;
@@ -85,7 +85,7 @@ const validateUser = async (req, res, next) => {
   await validator.validate();
 
   if (validator.getVerificationStatus() === true) {
-    req.USERNAME = validator.getEntityInfo()[USERNAME];
+    req[USERNAME] = validator.getEntityInfo()[USERNAME];
     next();
     return;
   }
@@ -106,7 +106,7 @@ const validateUser = async (req, res, next) => {
     }).createAccessToken();
 
     req.accessToken = accessToken;
-    req.USERNAME = validator.getEntityInfo()[USERNAME];
+    req[USERNAME] = validator.getEntityInfo()[USERNAME];
     next();
     return;
   }

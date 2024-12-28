@@ -9,7 +9,7 @@ import checks from "../../utils/checks.js";
 const router = Router();
 
 router.get("/", async (req, res) => {
-  const username = req.USERNAME;
+  const username = req.username;
 
   const tokens = authorization.getTokens(req);
 
