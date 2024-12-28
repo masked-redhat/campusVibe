@@ -25,9 +25,8 @@ router.post("/", async (req, res) => {
     }
   }
 
-  let user;
   try {
-    user = await User.findOne({ where: { username } });
+    const user = await User.findOne({ where: { username } });
     if (checks.isNuldefined(user)) {
       serve(res, codes.BAD_REQUEST, m.USER_NOT_FOUND);
       return;
@@ -43,7 +42,7 @@ router.post("/", async (req, res) => {
       return;
     }
 
-    const accessToken = authorization.setupAuth({ username }, res);
+    const accessToken = authorization.setupAuth({ id: user.id, username }, res);
 
     serve(res, codes.OK, m.LOGGED_IN, { accessToken });
   } catch (err) {

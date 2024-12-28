@@ -9,9 +9,9 @@ import User from "../models/ORM/user.js";
 import Tokens from "../models/ODM/tokens.js";
 import { serve } from "../utils/response.js";
 import codes from "../utils/codes.js";
+import db from "../db/commands/user.js";
 
-const REFRESHTOKEN = "refreshToken",
-  USERNAME = "username";
+const REFRESHTOKEN = "refreshToken";
 
 const setupAuth = (userData, res) => {
   const tokenizer = new auth.JwtTokenizer(userData);
@@ -85,7 +85,7 @@ const validateUser = async (req, res, next) => {
   await validator.validate();
 
   if (validator.getVerificationStatus() === true) {
-    req[USERNAME] = validator.getEntityInfo()[USERNAME];
+    req.user = validator.getEntityInfo();
     next();
     return;
   }
@@ -100,13 +100,20 @@ const validateUser = async (req, res, next) => {
   await validator.validate();
 
   if (validator.getVerificationStatus() === true) {
+    const username = validator.getEntityInfo().username;
+    // get the userid
+    const userId = await db.getUserId(username);
+    if (checks.isNuldefined(userId)) {
+      serve(res, codes.INTERNAL_SERVER_ERROR, "Try again.");
+      return;
+    }
+    const userEntity = { username, id: userId };
+
     // set the access token
-    const accessToken = new auth.JwtTokenizer({
-      USERNAME: validator.getEntityInfo()[USERNAME],
-    }).createAccessToken();
+    const accessToken = new auth.JwtTokenizer(userEntity).createAccessToken();
 
     req.accessToken = accessToken;
-    req[USERNAME] = validator.getEntityInfo()[USERNAME];
+    req.user = userEntity;
     next();
     return;
   }
