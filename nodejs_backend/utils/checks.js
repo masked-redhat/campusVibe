@@ -7,7 +7,8 @@ const isNuldefined = (entity) => {
     entity === "" ||
     entity === undefined ||
     entity === null ||
-    getObjLen(entity) === 0
+    getObjLen(entity) === 0 ||
+    entity === NaN
   );
 };
 
