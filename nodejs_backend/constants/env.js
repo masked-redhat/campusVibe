@@ -14,6 +14,12 @@ export const BACKEND = {
   EMAIL: {
     SALT: "HOLA MY FRIEND",
   },
+  PUBLIC: {
+    LOCATION: {
+      _: process.env.PUBLICDEST, // /public
+      IMAGES: process.env.IMAGEUPLOADDEST, // /public/images
+    },
+  },
 };
 
 const MYSQL = {
