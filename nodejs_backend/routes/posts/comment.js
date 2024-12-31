@@ -6,7 +6,12 @@ import checks from "../../utils/checks.js";
 import codes from "../../utils/codes.js";
 import MESSAGES from "../../constants/messages/global.js";
 import { MESSAGES as m } from "../../constants/messages/posts.js";
-import { ForeignKeyConstraintError, literal, ValidationError } from "sequelize";
+import {
+  ForeignKeyConstraintError,
+  literal,
+  UniqueConstraintError,
+  ValidationError,
+} from "sequelize";
 import User from "../../models/ORM/user.js";
 import PostCommentVote from "../../models/ORM/post/post_comments_votes.js";
 
@@ -163,6 +168,11 @@ router.put("/", async (req, res) => {
 router.delete("/", async (req, res) => {
   const { commentId } = req.query;
 
+  if (checks.isNuldefined(commentId)) {
+    serve(res, codes.BAD_REQUEST, m.INVALID_VALUES);
+    return;
+  }
+
   try {
     const deleted = await PostComment.destroy({
       where: { id: commentId },
@@ -205,7 +215,10 @@ router.get("/reply", async (req, res) => {
       ],
     });
 
-    serve(res, codes.OK, "Replies", { comments });
+    serve(res, codes.OK, "Replies", {
+      replies: comments,
+      offsetNext: offset + comments.length,
+    });
   } catch (err) {
     console.log(err);
 
@@ -232,7 +245,7 @@ router.get("/vote", async (req, res) => {
       ],
     });
 
-    serve(res, codes.OK, "Votes", { votes });
+    serve(res, codes.OK, "Votes", { votes, offsetNext: offset + votes.length });
   } catch (err) {
     console.log(err);
 
