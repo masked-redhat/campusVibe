@@ -71,7 +71,8 @@ router.post("/", async (req, res) => {
 router.use("/like", LikeRouter);
 
 router.patch("/", async (req, res) => {
-  const { title, content, images, reposts, postId } = req.body;
+  const { title, content, reposts, postId } = req.body;
+  const images = req.files?.map((val) => val.filename) ?? [];
 
   const updateData = Object.fromEntries(
     Object.entries({
@@ -102,7 +103,8 @@ router.patch("/", async (req, res) => {
 });
 
 router.put("/", async (req, res) => {
-  const { title, content, images, reposts, postId } = req.body;
+  const { title, content, reposts, postId } = req.body;
+  const images = req.files?.map((val) => val.filename) ?? [];
 
   const updateData = { title, content, images, reposts };
 
