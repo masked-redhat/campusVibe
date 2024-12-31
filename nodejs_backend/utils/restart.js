@@ -1,7 +1,7 @@
-const waitPeriod = 2000; // 4 secs
+const waitPeriod = 4000; // 4 secs
 
 const restart = (fn) => {
-  console.log("Trying again after ...");
+  console.log(`Trying again after ${waitPeriod / 1000} secs ...`);
 
   setTimeout(async () => {
     await fn();
