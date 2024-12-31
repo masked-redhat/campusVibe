@@ -9,3 +9,5 @@ tests
 **/trash.js
 **/plan.*
 **/*.py
+**/*/public/images/*.*
+**/*/public/assets
