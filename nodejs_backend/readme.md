@@ -10,187 +10,187 @@ Each request will return a Status Code [HTTP Code] and a Message [describing the
 Provides an accessCode by which user can interact with the application
 
 - Body
- - { username, password }
+- - { username, password }
 - Response
- - { accessCode }
- - Cookie[refreshCode]
+- - { accessCode }
+- - Cookie[refreshCode]
 
 ## /login/new [POST] (400, 409, 201, 500)
 
 Creates a user and sends a verification email in response
 
 - Body
- - { username, password, email }
+- - { username, password, email }
 - Response
- - Verification email with a verification link
+- - Verification email with a verification link
 
 ## /login/email [GET] (400, 200, 500)
 
 Verifies the user's email
 
 - Query
- - { username, token } [Both will be inside the verification link]
+- - { username, token } [Both will be inside the verification link]
 - Response
- - null
+- - null
 
 ## /login/email/resend [GET] (400, 200, 500)
 
 Makes the previous verification links invalid and sends a new one
 
 - Query
- - { username }
+- - { username }
 - Response
- - Verification email with a verification link
+- - Verification email with a verification link
 
 ## /logout [GET] (200, 500)
 
 Logs out the user. The tokens will become invalid
 
 - Query
- - null
+- - null
 - Response
- - null
+- - null
 
 ## /posts [GET] (200, 500)
 
 Sends a response containing posts of the concerning user
 
 - Query
- - { offset }
+- - { offset }
 - Response
- - { posts, offsetNext }
+- - { posts, offsetNext }
 
 ## /posts [POST] (400, 500, 201)
 
 User can now post
 
 - Body
- - { title, content, reposts, images }
+- - { title, content, reposts, images }
 - Response
- - { postId }
+- - { postId }
 
 ## /posts [PATCH] (400, 500, 200)
 
 Will update only provided values
 
 - Body
- - { [title, content, reposts, images], postId }
+- - { [title, content, reposts, images], postId }
 - Response
- - null
+- - null
 
 ## /posts [PUT] (400, 500, 200)
 
 Will update all values
 
 - Body
- - { title, content, reposts, images, postId }
+- - { title, content, reposts, images, postId }
 - Response
- - null
+- - null
 
 ## /posts [DELETE] (400, 500, 204)
 
 Deletes the requested post
 
 - Query
- - { postId }
+- - { postId }
 - Response
- - null
+- - null
 
 ## /posts/like [GET] (404, 500, 200)
 
 Gives the like activity on a post
 
 - Query
- - { postId, offset }
+- - { postId, offset }
 - Response
- - { likes, offsetNext }
+- - { likes, offsetNext }
 
 ## /posts/like [POST] (409, 404, 500, 200)
 
 Likes the post
 
 - Body
- - { postId }
+- - { postId }
 - Response
- - null
+- - null
 
 ## /posts/like [DELETE] (400, 500, 200)
 
 Unlikes the post
 
 - Query
- - { postId }
+- - { postId }
 - Response
- - null
+- - null
 
 ## /posts/comment [GET] (400, 500, 200)
 
 Gives the comments on a specific post/posts
 
 - Query
- - { postId/[], offset, filter["LATEST"(default),"HIGHEST_VOTE"] }
+- - { postId/[], offset, filter["LATEST"(default),"HIGHEST_VOTE"] }
 - Response
- - { comments, offsetNext }
+- - { comments, offsetNext }
 
 ## /posts/comment [POST] (400, 500, 201)
 
 Comments on a post
 
 - Body
- - { postId, comment, commentId[neccessary_if_replying], images }
+- - { postId, comment, commentId[neccessary_if_replying], images }
 - Response
- - null
+- - null
 
 ## /posts/comment [PATCH] (400, 500, 200)
 
 Patches a comment, only updates provided values
 
 - Body
- - { [comment, images], commentId }
+- - { [comment, images], commentId }
 - Response
- - null
+- - null
 
 ## /posts/comment [PUT] (400, 500, 200)
 
 Patches a comment, only updates provided values
 
 - Body
- - { comment, images, commentId }
+- - { comment, images, commentId }
 - Response
- - null
+- - null
 
 ## /posts/comment [DELETE] (500, 400, 204)
 
 Deletes the comment and its corresponding replies
 
 - Query
- - { commentId }
+- - { commentId }
 - Response
- - null
+- - null
 
 ## /posts/comment/reply [GET] (400, 200, 500)
 
 Get the replies of a comment
 
 - Query
- - { commentId, offset }
+- - { commentId, offset }
 - Response
- - { replies, offsetNext }
+- - { replies, offsetNext }
 
 ## /posts/comment/vote [GET] (200, 500)
 
 Get the vote activity on a comment
 
 - Query
- - { commentId, offset }
+- - { commentId, offset }
 - Response
- - { vote, offsetNext }
+- - { vote, offsetNext }
 
 ## /posts/comment/vote [POST] (400, 200, 500)
 
 Create/update vote given by user on a comment
 
 - Body
- - { commentId, voteVal }
+- - { commentId, voteVal }
 - Response
- - null
+- - null
