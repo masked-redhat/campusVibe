@@ -27,9 +27,8 @@ const syncTokens = async (skipNum = 0) => {
     }
   });
 
-  Tokens.deleteMany({ id: { $in: deleteIDs } }).then((res) => {
-    if (res.deletedCount !== 0) console.log(res);
-  });
+  const deleted = await Tokens.deleteMany({ _id: { $in: deleteIDs } });
+  if (deleted.deletedCount !== 0) console.log(deleted);
 
   const skip = skipNum + LIMIT - deleteIDs.length;
 
