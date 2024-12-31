@@ -5,7 +5,6 @@ import { gzipSync, gunzipSync } from "zlib";
 import checks from "../../../utils/checks.js";
 import PostLike from "./post_likes.js";
 import PostComment from "./post_comments.js";
-import User from "../user.js";
 
 db.define("Post", {
   id: models.SQLMODEL.ID,
