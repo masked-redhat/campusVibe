@@ -191,6 +191,6 @@ Get the vote activity on a comment
 Create/update vote given by user on a comment
 
 - Body
-- - { commentId, voteVal }
+- - { commentId, voteVal[-1,0,1] }
 - Response
 - - null
