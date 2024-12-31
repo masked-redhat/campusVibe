@@ -73,7 +73,7 @@ router.post("/", async (req, res) => {
 });
 
 router.delete("/", async (req, res) => {
-  const { postId } = req.body;
+  const { postId } = req.query;
 
   try {
     const like = await PostLike.destroy({
