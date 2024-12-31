@@ -7,6 +7,7 @@ import Routes from "./routes/router.js";
 import cookieParser from "cookie-parser";
 import authorization from "./middlewares/auth.js";
 import { syncDB } from "./sync/syncing.js";
+import upload from "./middlewares/parser.js";
 const r = Routes,
   auth = authorization.validateUser;
 
@@ -21,9 +22,13 @@ await connectToMongo();
 // Start Syncing
 syncDB();
 
+// Public Folder containing images
+app.use(express.static(env.backend.PUBLIC.LOCATION._));
+
 // Global Middlewares
 app.use(express.json());
 app.use(cookieParser());
+app.use(upload.any());
 
 // Routes
 app.use("/login", r.LoginRouter);
