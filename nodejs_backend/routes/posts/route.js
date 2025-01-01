@@ -8,6 +8,7 @@ import checks from "../../utils/checks.js";
 import { ValidationError } from "sequelize";
 import { LikeRouter } from "./like.js";
 import { CommentRouter } from "./comment.js";
+import User from "../../models/ORM/user.js";
 
 const router = Router();
 
@@ -15,16 +16,19 @@ export const LIMIT = 20;
 export const simpleOrder = (field) => [[field, "desc"]];
 
 router.get("/", async (req, res) => {
-  const { offset: rawOffset } = req.query;
+  const { offset: rawOffset, userId } = req.query;
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
 
   try {
     const posts = await Post.findAll({
       attributes: { exclude: ["userId"] },
-      where: { userId: req.user.id },
+      where: { userId: userId ?? req.user.id },
       offset,
       limit: LIMIT,
       order: simpleOrder("createdAt"),
+      include: [
+        { model: User, foreignKey: "userId", attributes: ["username"] },
+      ],
     });
 
     serve(res, codes.OK, m.POSTS_FOUND, {
