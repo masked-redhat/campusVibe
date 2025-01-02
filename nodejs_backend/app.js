@@ -34,6 +34,8 @@ app.use(upload.any());
 app.use("/login", r.LoginRouter);
 app.use("/logout", auth, r.LogoutRouter);
 app.use("/posts", auth, r.PostsRouter);
+app.use("/friends", auth, r.FriendRouter);
+app.use("/posts", auth, r.PostsRouter);
 app.use("/news", auth, r.NewsRouter);
 app.use("/jobs", auth, r.JobsRouter);
 app.use("/forums", auth, r.ForumsRouter);
