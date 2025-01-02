@@ -11,5 +11,6 @@ export const MESSAGES = {
   BAD_PASSWORD: "Password is wrong, please try again",
   LOGGED_IN: "Log in successfull",
   EMAIL_UNVERIFIED: "Email is not verified, request for email verification",
-  EMAIL_SENT: "Verification email sent successfully"
+  EMAIL_SENT: "Verification email sent successfully",
+  BLACKLISTED: "User blacklisted"
 };

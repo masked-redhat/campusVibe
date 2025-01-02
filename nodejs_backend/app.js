@@ -20,7 +20,7 @@ await connectToSqlDatabase();
 await connectToMongo();
 
 // Start Syncing
-syncDB();
+// syncDB();
 
 // Public Folder containing images
 app.use(express.static(env.backend.PUBLIC.LOCATION._));

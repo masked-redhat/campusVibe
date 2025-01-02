@@ -13,7 +13,10 @@ export const TOKEN = JWT;
 export const COOKIE = {
   HTTPONLY: true,
   SECURE: true,
-  MAXAGE: JWT.EXPIRY.REFRESHTOKEN,
+  MAXAGE: {
+    REFRESH: JWT.EXPIRY.REFRESHTOKEN,
+    ACCESS: JWT.EXPIRY.ACCESSTOKEN,
+  },
 };
 
 const constantAuth = {

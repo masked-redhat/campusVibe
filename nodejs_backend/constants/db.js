@@ -2,8 +2,9 @@ import { DataTypes as DT } from "sequelize";
 
 const SQLMODEL = {
   ID: {
-    type: DT.INTEGER,
-    autoIncrement: true,
+    type: DT.UUID,
+    defaultValue: DT.UUIDV4,
+    // autoIncrement: true,
     allowNull: false,
     unique: true,
     primaryKey: true,
