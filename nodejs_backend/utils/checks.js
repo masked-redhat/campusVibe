@@ -6,6 +6,10 @@ const isNuldefined = (entity) => {
   return entity === undefined || entity === null || entity === NaN;
 };
 
+const isTrue = (entity) => {
+  return String(entity).trim() === "true";
+};
+
 const isObject = (ent) => {
   return (
     ent != undefined &&
@@ -25,6 +29,7 @@ const getObjLen = (obj) => {
 
 const checks = {
   isNuldefined,
+  isTrue,
 };
 
 export default checks;
