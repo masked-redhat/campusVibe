@@ -26,25 +26,32 @@ router.post("/", async (req, res) => {
   }
 
   try {
-    const user = await User.findOne({ where: { username } });
+    const user = await User.findOne({
+      attributes: ["id", "password", "email_verified", "blacklisted"],
+      where: { username },
+    });
+
     if (checks.isNuldefined(user)) {
       serve(res, codes.BAD_REQUEST, m.USER_NOT_FOUND);
       return;
     }
-
     if (pass.compare(password, user.password) === false) {
       serve(res, codes.UNAUTHORIZED, m.BAD_PASSWORD);
       return;
     }
-
     if (user.email_verified === false) {
       serve(res, codes.BAD_REQUEST, m.EMAIL_UNVERIFIED);
       return;
     }
+    if (user.blacklisted === true) {
+      serve(res, codes.FORBIDDEN, m.BLACKLISTED);
+      return;
+    }
 
-    const accessToken = authorization.setupAuth({ id: user.id, username }, res);
+    const token = await authorization.setupAuth({ id: user.id, username }, res);
 
-    serve(res, codes.OK, m.LOGGED_IN, { accessToken });
+    if (!checks.isNuldefined(token))
+      serve(res, codes.OK, m.LOGGED_IN, { token });
   } catch (err) {
     console.log(err);
 
