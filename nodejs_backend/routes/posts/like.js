@@ -5,11 +5,14 @@ import codes from "../../utils/codes.js";
 import MESSAGES from "../../constants/messages/global.js";
 import { MESSAGES as m } from "../../constants/messages/posts.js";
 import { serve } from "../../utils/response.js";
-import { LIMIT, simpleOrder } from "./route.js";
+import { simpleOrder } from "./route.js";
 import checks from "../../utils/checks.js";
 import User from "../../models/ORM/user.js";
+import limits from "../../constants/limits.js";
 
 const router = Router();
+
+const LIMIT = limits.POST.LIKE;
 
 router.get("/", async (req, res) => {
   const { postId, offset: rawOffset } = req.query;

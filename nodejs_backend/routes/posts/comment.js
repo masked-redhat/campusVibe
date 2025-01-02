@@ -1,21 +1,19 @@
 import { Router } from "express";
 import PostComment from "../../models/ORM/post/post_comments.js";
-import { LIMIT, simpleOrder } from "./route.js";
+import { simpleOrder } from "./route.js";
 import { serve } from "../../utils/response.js";
 import checks from "../../utils/checks.js";
 import codes from "../../utils/codes.js";
 import MESSAGES from "../../constants/messages/global.js";
 import { MESSAGES as m } from "../../constants/messages/posts.js";
-import {
-  ForeignKeyConstraintError,
-  literal,
-  UniqueConstraintError,
-  ValidationError,
-} from "sequelize";
+import { ForeignKeyConstraintError, literal, ValidationError } from "sequelize";
 import User from "../../models/ORM/user.js";
 import PostCommentVote from "../../models/ORM/post/post_comments_votes.js";
+import limits from "../../constants/limits.js";
 
 const router = Router();
+
+const LIMIT = limits.POST.COMMENT;
 
 router.get("/", async (req, res) => {
   // postId can be array too [id1, id2, id3]

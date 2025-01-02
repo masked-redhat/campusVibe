@@ -9,10 +9,11 @@ import { ValidationError } from "sequelize";
 import { LikeRouter } from "./like.js";
 import { CommentRouter } from "./comment.js";
 import User from "../../models/ORM/user.js";
+import limits from "../../constants/limits.js";
 
 const router = Router();
 
-export const LIMIT = 20;
+const LIMIT = limits.POST._;
 export const simpleOrder = (field) => [[field, "desc"]];
 
 router.get("/", async (req, res) => {
