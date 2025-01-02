@@ -1,11 +1,16 @@
 import { Schema, model } from "mongoose";
+import { COOKIE } from "../../constants/auth.js";
 
 const tokenSchema = new Schema({
-  username: String,
-  token: String,
-  tokenType: {
-    type: String,
-    enum: ["access", "refresh"],
+  token: { type: String, required: true },
+  userData: {
+    type: Object,
+    required: true,
+  },
+  expiry: {
+    type: Date,
+    default: Date.now() + COOKIE.MAXAGE.REFRESH,
+    required: true,
   },
 });
 
