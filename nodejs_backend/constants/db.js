@@ -11,6 +11,10 @@ const SQLMODEL = {
   },
 };
 
-const models = { SQLMODEL };
+export const Expiry = {
+  EmailTokens: 5 * 60 * 1000,
+};
+
+const models = { SQLMODEL, Expiry };
 
 export default models;

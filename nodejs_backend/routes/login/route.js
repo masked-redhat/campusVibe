@@ -132,8 +132,8 @@ router.post("/new", async (req, res) => {
   const userObj = User.build(userData);
 
   // create the verification email token
-  const emailToken = emailVerifier.tokenize(username);
-  const emailObj = new EmailTokens({ username, token: emailToken });
+  const emailOtp = emailVerifier.generateOtp();
+  const emailObj = new EmailTokens({ username, otp: emailOtp });
 
   // save the email and the user and give response
   {
@@ -144,8 +144,8 @@ router.post("/new", async (req, res) => {
 
       await emailVerifier.verify(
         user.email,
-        "Verify email",
-        `/login/email?username=${email.username}&token=${email.token}`
+        "CampusVibe Application Email Verification",
+        `OTP : ${emailOtp}`
       );
 
       serve(res, codes.CREATED, m.CREATED);
@@ -159,22 +159,26 @@ router.post("/new", async (req, res) => {
   }
 });
 
-router.get("/email", async (req, res) => {
-  const { username, token } = req.query;
+router.post("/email", async (req, res) => {
+  const { username, otp } = req.body;
 
   // check if content are not null
   {
-    if (checks.isNuldefined(username) || checks.isNuldefined(token)) {
+    if (checks.isNuldefined(username) || checks.isNuldefined(otp)) {
       serve(res, codes.BAD_REQUEST, m.NO_CONTENT);
       return;
     }
   }
 
   try {
-    let email = await EmailTokens.findOne({ username, token });
+    let email = await EmailTokens.findOne({ username, otp });
+
+    if (Date.now() > email.expiry) {
+      serve(res, codes.BAD_REQUEST, m.OTP_TIMEOUT);
+    }
 
     if (checks.isNuldefined(email)) {
-      serve(res, codes.BAD_REQUEST, m.TOKEN_INVALID);
+      serve(res, codes.BAD_REQUEST, m.OTP_INVALID);
       return;
     }
 
@@ -183,15 +187,13 @@ router.get("/email", async (req, res) => {
       { where: { username: email.username } }
     );
 
-    console.log(user);
-
     if (checks.isNuldefined(user)) {
       serve(res, codes.BAD_REQUEST, m.USER_NOT_FOUND);
       return;
     }
 
     await EmailTokens.deleteOne({
-      _id: email.id,
+      _id: email._id,
     });
 
     serve(res, codes.OK, m.EMAIL_VERIFIED);
@@ -215,15 +217,15 @@ router.get("/email/resend", async (req, res) => {
 
     await EmailTokens.deleteMany({ username });
 
-    const emailToken = emailVerifier.tokenize(username);
-    const emailObj = new EmailTokens({ username, token: emailToken });
+    const emailOtp = emailVerifier.generateOtp();
+    const emailObj = new EmailTokens({ username, otp: emailOtp });
 
     const email = await emailObj.save();
 
     await emailVerifier.verify(
       user.email,
-      "Verify email",
-      `/login/email?username=${email.username}&token=${email.token}`
+      "CampusVibe Application Email Verification",
+      `OTP : ${email.otp}`
     );
 
     serve(res, codes.OK, m.EMAIL_SENT);
