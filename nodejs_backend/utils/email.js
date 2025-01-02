@@ -49,7 +49,7 @@ const sendVerificationEmail = async (
     from: NODEMAILER.EMAIL,
     to: recipient,
     subject: subject,
-    text: `Click on this link to verify your email: ${env.url}${text}`,
+    text,
   };
 
   const transporter = await createTransporter();
@@ -63,18 +63,15 @@ const sendVerificationEmail = async (
   });
 };
 
-const createToken = (username) => {
-  const token = bcryptjs.hashSync(
-    BACKEND.SECRET.EMAIL + username,
-    BACKEND.PASSWORD.SALT
-  );
-
-  return token;
+const createToken = () => {
+  return Math.floor(Math.random() * 1000000)
+    .toString()
+    .padStart(6, "0");
 };
 
 const emailVerifier = {
   verify: sendVerificationEmail,
-  tokenize: createToken,
+  generateOtp: createToken,
 };
 
 export default emailVerifier;
