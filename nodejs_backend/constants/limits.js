@@ -6,8 +6,11 @@ const limits = {
   },
   FRIEND: {
     _: 40,
-    REQUEST: 40
-  }
+    REQUEST: 40,
+  },
+  FEED: {
+    _: 30,
+  },
 };
 
 export default limits;
