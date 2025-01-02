@@ -5,6 +5,7 @@ import Post from "./post/posts.js";
 import PostLike from "./post/post_likes.js";
 import PostComment from "./post/post_comments.js";
 import PostCommentVote from "./post/post_comments_votes.js";
+import Friend, { alias } from "./friends.js";
 
 db.define("User", {
   id: models.SQLMODEL.ID,
@@ -51,5 +52,18 @@ PostComment.belongsTo(User, { foreignKey });
 
 User.hasMany(PostCommentVote, { foreignKey, onDelete: "CASCADE" });
 PostCommentVote.belongsTo(User, { foreignKey });
+
+User.hasMany(Friend, { as: alias.userId, foreignKey, onDelete: "CASCADE" });
+Friend.belongsTo(User, { as: alias.userId, foreignKey });
+
+User.hasMany(Friend, {
+  as: alias.friendId,
+  foreignKey: "friendId",
+  onDelete: "CASCADE",
+});
+Friend.belongsTo(User, {
+  as: alias.friendId,
+  foreignKey: "friendId",
+});
 
 export default User;
