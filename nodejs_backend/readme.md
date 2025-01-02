@@ -194,3 +194,75 @@ Create/update vote given by user on a comment
 - - { commentId, voteVal[-1,0,1] }
 - Response
 - - null
+
+## /friends [GET] (200, 500)
+
+Gets all the friends (where request accepted)
+
+- Query
+- - { offset }
+- Response
+- - { friends, offsetNext }
+
+## /friends [DELETE] (204, 500)
+
+Unfriend the user
+
+- Query
+- - { friendId }
+- Response
+- - null
+
+## /friends/request [GET] (400, 200, 500)
+
+Gets all the requests depending on the query
+
+- Query
+- - { offset, sent, [recieved, accepted, rejected] }
+- Response
+- - { requests, offsetNext }
+
+## /friends/request/all [GET] (200, 500)
+
+Gets all the requests where accepted request will not be available
+
+- Query
+- - { offset }
+- Response
+- - { requests, offsetNext }
+
+## /friends/request [POST] (400, 201, 500)
+
+Sends a request to the specified user
+
+- Body
+- - { friendId }
+- Response
+- - null
+
+## /friends/request/accept [POST] (200, 500)
+
+Accepts a friend request
+
+- Body
+- - { friendId }
+- Response
+- - null
+
+## /friends/request/reject [POST] (200, 500)
+
+Rejects a friend request
+
+- Body
+- - { friendId }
+- Response
+- - null
+
+## /friends/request [DELETE] (204, 500)
+
+Deletes a friend request
+
+- Query
+- - { friendId }
+- Response
+- - null
