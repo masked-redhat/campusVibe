@@ -12,8 +12,8 @@ Provides an accessCode by which user can interact with the application
 - Body
 - - { username, password }
 - Response
-- - { accessCode }
-- - Cookie[refreshCode]
+- - { token }
+- - Cookie[token]
 
 ## /login/new [POST] (400, 409, 201, 500)
 
@@ -22,14 +22,14 @@ Creates a user and sends a verification email in response
 - Body
 - - { username, password, email }
 - Response
-- - Verification email with a verification link
+- - Verification email with a Otp
 
-## /login/email [GET] (400, 200, 500)
+## /login/email [POST] (400, 200, 500)
 
 Verifies the user's email
 
-- Query
-- - { username, token } [Both will be inside the verification link]
+- Body
+- - { username, otp } [OTP will be in the verification email]
 - Response
 - - null
 
@@ -40,7 +40,7 @@ Makes the previous verification links invalid and sends a new one
 - Query
 - - { username }
 - Response
-- - Verification email with a verification link
+- - Verification email with a Otp
 
 ## /logout [GET] (200, 500)
 
