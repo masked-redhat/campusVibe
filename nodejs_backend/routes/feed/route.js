@@ -6,7 +6,7 @@ import { serve } from "../../utils/response.js";
 import checks from "../../utils/checks.js";
 import limits from "../../constants/limits.js";
 import Friend from "../../models/ORM/friends.js";
-import { Op } from "sequelize";
+import { Op, literal } from "sequelize";
 import User from "../../models/ORM/user.js";
 
 const router = Router();
@@ -32,16 +32,35 @@ router.get("/", async (req, res) => {
   try {
     let friends = [];
     if (type === types.FORYOU) {
-      friends = await Friend.findAll({
-        attributes: ["userId", "friendId"],
-        where: {
-          [Op.or]: [{ userId: uid }, { friendId: uid }],
-        },
-      });
+      const CHUNK_SIZE = 10000; // Adjust chunk size
+      let offset = 0;
 
-      friends = friends.map((ids) =>
-        ids.userId === uid ? ids.friendId : ids.userId
-      );
+      while (true) {
+        const chunk = await Friend.findAll({
+          attributes: [
+            [
+              literal(`
+                  CASE
+                    WHEN "userId" = ${uid} THEN "friendId"
+                    ELSE "userId"
+                  END
+                `),
+              "friendId",
+            ],
+          ],
+          where: {
+            [Op.or]: [{ userId: uid }, { friendId: uid }],
+          },
+          limit: CHUNK_SIZE,
+          offset,
+          raw: true, // Use plain objects
+        });
+
+        if (chunk.length === 0) break; // Exit if no more data
+
+        friends = friends.concat(chunk.map((row) => row.friendId));
+        offset += CHUNK_SIZE;
+      }
     }
 
     const posts = await Post.findAll({
