@@ -166,7 +166,7 @@ router.post("/accept", async (req, res) => {
       }
     );
 
-    serve(res, codes.OK, "Friend Request Accepted", { acceptRequest });
+    serve(res, codes.OK, "Friend Request Accepted");
   } catch (err) {
     console.log(err);
 
@@ -189,7 +189,7 @@ router.post("/reject", async (req, res) => {
       }
     );
 
-    serve(res, codes.OK, "Friend Request Rejected", { rejectRequest });
+    serve(res, codes.OK, "Friend Request Rejected");
   } catch (err) {
     console.log(err);
 
@@ -199,15 +199,19 @@ router.post("/reject", async (req, res) => {
 
 router.delete("/", async (req, res) => {
   const uid = req.user.id;
+  const { friendId } = req.body;
 
   try {
     const deleted = await Friend.destroy({
       where: {
         userId: uid,
+        friendId,
       },
       requestAccepted: false,
       requestRejected: false,
     });
+
+    serve(res, codes.NO_CONTENT);
   } catch (err) {
     console.log(err);
 
