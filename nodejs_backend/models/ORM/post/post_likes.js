@@ -28,11 +28,21 @@ db.define(
 const PostLike = db.models.PostLike;
 
 PostLike.afterCreate(async (like, options) => {
-  await Post.increment("likes", { by: 1, where: { id: like.postId } });
+  const transaction = options.transaction;
+  await Post.increment("likes", {
+    by: 1,
+    where: { id: like.postId },
+    transaction,
+  });
 });
 
 PostLike.beforeDestroy(async (like, options) => {
-  await Post.decrement("likes", { by: 1, where: { id: like.postId } });
+  const transaction = options.transaction;
+  await Post.decrement("likes", {
+    by: 1,
+    where: { id: like.postId },
+    transaction,
+  });
 });
 
 export default PostLike;

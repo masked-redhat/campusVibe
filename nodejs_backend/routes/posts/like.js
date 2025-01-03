@@ -9,6 +9,7 @@ import { simpleOrder } from "./route.js";
 import checks from "../../utils/checks.js";
 import User from "../../models/ORM/user.js";
 import limits from "../../constants/limits.js";
+import transaction from "../../db/sql/transaction.js";
 
 const router = Router();
 
@@ -50,13 +51,19 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
   const { postId } = req.body;
 
+  const t = await transaction();
   try {
-    const like = await PostLike.create({
-      postId,
-      userId: req.user.id,
-    });
+    const like = await PostLike.create(
+      {
+        postId,
+        userId: req.user.id,
+      },
+      { transaction: t }
+    );
+    await t.commit();
   } catch (err) {
     console.log(err);
+    await t.rollback();
 
     if (err instanceof UniqueConstraintError) {
       serve(res, codes.CONFLICT, m.ALREADY_LIKED);
@@ -78,6 +85,7 @@ router.post("/", async (req, res) => {
 router.delete("/", async (req, res) => {
   const { postId } = req.query;
 
+  const t = await transaction();
   try {
     const like = await PostLike.destroy({
       where: {
@@ -85,14 +93,18 @@ router.delete("/", async (req, res) => {
         userId: req.user.id,
       },
       individualHooks: true, // to make it NOT a bulk destory event
+      transaction: t,
     });
 
     if (like === 0) {
       serve(res, codes.BAD_REQUEST, m.ID_WRONG_NO_ACCESS);
       return;
     }
+
+    await t.commit();
   } catch (err) {
     console.log(err);
+    await t.rollback();
 
     serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
     return;
