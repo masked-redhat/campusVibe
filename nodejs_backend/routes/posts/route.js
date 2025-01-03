@@ -8,8 +8,8 @@ import checks from "../../utils/checks.js";
 import { ValidationError } from "sequelize";
 import { LikeRouter } from "./like.js";
 import { CommentRouter } from "./comment.js";
-import User from "../../models/ORM/user.js";
 import limits from "../../constants/limits.js";
+import { userInfoInclusion } from "../../constants/db.js";
 
 const router = Router();
 
@@ -27,9 +27,7 @@ router.get("/", async (req, res) => {
       offset,
       limit: LIMIT,
       order: simpleOrder("createdAt"),
-      include: [
-        { model: User, foreignKey: "userId", attributes: ["username"] },
-      ],
+      include: [userInfoInclusion],
     });
 
     serve(res, codes.OK, m.POSTS_FOUND, {

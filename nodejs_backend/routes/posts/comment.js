@@ -7,10 +7,10 @@ import codes from "../../utils/codes.js";
 import MESSAGES from "../../constants/messages/global.js";
 import { MESSAGES as m } from "../../constants/messages/posts.js";
 import { ForeignKeyConstraintError, literal, ValidationError } from "sequelize";
-import User from "../../models/ORM/user.js";
 import PostCommentVote from "../../models/ORM/post/post_comments_votes.js";
 import limits from "../../constants/limits.js";
 import transaction from "../../db/sql/transaction.js";
+import { userInfoInclusion } from "../../constants/db.js";
 
 const router = Router();
 
@@ -53,13 +53,7 @@ router.get("/", async (req, res) => {
       limit: LIMIT,
       offset,
       order,
-      include: [
-        {
-          model: User,
-          foreignKey: "userId",
-          attributes: ["username"], // Only fetch username from the User table
-        },
-      ],
+      include: [userInfoInclusion],
     });
   } catch (err) {
     console.log(err);
@@ -178,7 +172,7 @@ router.delete("/", async (req, res) => {
 
   const t = await transaction();
   try {
-    const deleted = await PostComment.destroy({
+    await PostComment.destroy({
       where: { id: commentId },
       individualHooks: true,
       transaction: t,
@@ -212,13 +206,7 @@ router.get("/reply", async (req, res) => {
       limit: LIMIT,
       offset,
       order: simpleOrder("updatedAt"),
-      include: [
-        {
-          model: User,
-          foreignKey: "userId",
-          attributes: ["username"], // Only fetch username from the User table
-        },
-      ],
+      include: [userInfoInclusion],
     });
 
     serve(res, codes.OK, "Replies", {
@@ -242,13 +230,7 @@ router.get("/vote", async (req, res) => {
       limit: LIMIT,
       offset,
       order: simpleOrder("createdAt"),
-      include: [
-        {
-          model: User,
-          foreignKey: "userId",
-          attributes: ["username"], // Only fetch username from the User table
-        },
-      ],
+      include: [userInfoInclusion],
     });
 
     serve(res, codes.OK, "Votes", { votes, offsetNext: offset + votes.length });
@@ -279,26 +261,36 @@ router.post("/vote", async (req, res) => {
   }
 
   let vote;
+  const t = await transaction();
   try {
     const find = await PostCommentVote.findOne({
       where: { commentId, userId: req.user.id },
     });
 
     if (checks.isNuldefined(find))
-      vote = await PostCommentVote.create({
-        vote: voteVal,
-        commentId,
-        userId: req.user.id,
-      });
+      vote = await PostCommentVote.create(
+        {
+          vote: voteVal,
+          commentId,
+          userId: req.user.id,
+        },
+        { transaction: t }
+      );
     else
       vote = await PostCommentVote.update(
         { vote: voteVal },
-        { where: { commentId, userId: req.user.id }, individualHooks: true }
+        {
+          where: { commentId, userId: req.user.id },
+          individualHooks: true,
+          transaction: t,
+        }
       );
 
+    await t.commit();
     serve(res, codes.OK, m.VOTED);
   } catch (err) {
     console.log(err);
+    await t.rollback();
 
     serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
   }

@@ -29,20 +29,24 @@ db.define(
 const PostCommentVote = db.models.PostCommentVote;
 
 PostCommentVote.afterCreate(async (vote, options) => {
+  const transaction = options.transaction;
   const newVote = vote.vote;
   if (newVote === -1)
     await PostComment.increment("downvotes", {
       by: 1,
       where: { id: vote.commentId },
+      transaction,
     });
   else if (newVote === 1)
     await PostComment.increment("upvotes", {
       by: 1,
       where: { id: vote.commentId },
+      transaction,
     });
 });
 
 PostCommentVote.afterUpdate(async (vote, options) => {
+  const transaction = options.transaction;
   const prevVote = vote.previous("vote");
   const newVote = vote.vote;
 
@@ -51,66 +55,51 @@ PostCommentVote.afterUpdate(async (vote, options) => {
       await PostComment.increment("downvotes", {
         by: 1,
         where: { id: vote.commentId },
+        transaction,
       });
     else if (newVote === 1)
       await PostComment.increment("upvotes", {
         by: 1,
         where: { id: vote.commentId },
+        transaction,
       });
   } else if (prevVote === -1) {
-    if (newVote === 1)
-      await db.transaction(async (t) => {
-        await PostComment.decrement("downvotes", {
-          by: 1,
-          where: { id: vote.commentId },
-          transaction: t,
-        });
-        await PostComment.increment("upvotes", {
-          by: 1,
-          where: { id: vote.commentId },
-          transaction: t,
-        });
-      });
-    else if (newVote === 0)
+    if (newVote === 1) {
       await PostComment.decrement("downvotes", {
         by: 1,
         where: { id: vote.commentId },
+        transaction,
+      });
+      await PostComment.increment("upvotes", {
+        by: 1,
+        where: { id: vote.commentId },
+        transaction,
+      });
+    } else if (newVote === 0)
+      await PostComment.decrement("downvotes", {
+        by: 1,
+        where: { id: vote.commentId },
+        transaction,
       });
   } else if (prevVote === 1) {
-    if (newVote === -1)
-      await db.transaction(async (t) => {
-        await PostComment.decrement("upvotes", {
-          by: 1,
-          where: { id: vote.commentId },
-          transaction: t,
-        });
-        await PostComment.increment("downvotes", {
-          by: 1,
-          where: { id: vote.commentId },
-          transaction: t,
-        });
-      });
-    else if (newVote === 0)
+    if (newVote === -1) {
       await PostComment.decrement("upvotes", {
         by: 1,
         where: { id: vote.commentId },
-        transaction: t,
+        transaction,
+      });
+      await PostComment.increment("downvotes", {
+        by: 1,
+        where: { id: vote.commentId },
+        transaction,
+      });
+    } else if (newVote === 0)
+      await PostComment.decrement("upvotes", {
+        by: 1,
+        where: { id: vote.commentId },
+        transaction,
       });
   }
-});
-
-PostCommentVote.afterDestroy(async (vote, options) => {
-  const newVote = vote.vote;
-  if (newVote === -1)
-    await PostComment.increment("downvotes", {
-      by: 1,
-      where: { id: vote.commentId },
-    });
-  else if (newVote === 1)
-    await PostComment.increment("upvotes", {
-      by: 1,
-      where: { id: vote.commentId },
-    });
 });
 
 export default PostCommentVote;
