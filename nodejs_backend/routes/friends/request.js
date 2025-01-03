@@ -117,9 +117,26 @@ router.get("/all", async (req, res) => {
 
 router.post("/", async (req, res) => {
   const uid = req.user.id;
-  const { friendId } = req.body;
+  const { username } = req.body;
+
+  if (username === req.user.username) {
+    serve(res, codes.BAD_REQUEST, "Cannot send friend request to yourself");
+    return;
+  }
 
   try {
+    const friend = await User.findOne({
+      attributes: ["id"],
+      where: { username },
+    });
+
+    if (checks.isNuldefined(friend)) {
+      serve(res, codes.BAD_REQUEST, "No user with that username");
+      return;
+    }
+
+    const friendId = friend.id;
+
     let friendFound = await Friend.findOne({
       where: {
         [Op.or]: [
@@ -141,6 +158,12 @@ router.post("/", async (req, res) => {
       await Friend.update({
         requestRejected: false,
       });
+    } else if (
+      friendFound.requestAccepted === false &&
+      friendFound.requestRejected === false
+    ) {
+      serve(res, codes.BAD_REQUEST, "Request already sent");
+      return;
     }
 
     serve(res, codes.CREATED, "Friend Request Sent");
@@ -153,9 +176,21 @@ router.post("/", async (req, res) => {
 
 router.post("/accept", async (req, res) => {
   const uid = req.user.id;
-  const { friendId } = req.body;
+  const { username } = req.body;
 
   try {
+    const friend = await User.findOne({
+      attributes: ["id"],
+      where: { username },
+    });
+
+    if (checks.isNuldefined(friend)) {
+      serve(res, codes.BAD_REQUEST, "No user with that username");
+      return;
+    }
+
+    const friendId = friend.id;
+
     const acceptRequest = await Friend.update(
       { requestAccepted: true },
       {
@@ -176,9 +211,21 @@ router.post("/accept", async (req, res) => {
 
 router.post("/reject", async (req, res) => {
   const uid = req.user.id;
-  const { friendId } = req.body;
+  const { username } = req.body;
 
   try {
+    const friend = await User.findOne({
+      attributes: ["id"],
+      where: { username },
+    });
+
+    if (checks.isNuldefined(friend)) {
+      serve(res, codes.BAD_REQUEST, "No user with that username");
+      return;
+    }
+
+    const friendId = friend.id;
+
     const rejectRequest = await Friend.update(
       { requestRejected: true },
       {
@@ -199,9 +246,21 @@ router.post("/reject", async (req, res) => {
 
 router.delete("/", async (req, res) => {
   const uid = req.user.id;
-  const { friendId } = req.body;
+  const { username } = req.query;
 
   try {
+    const friend = await User.findOne({
+      attributes: ["id"],
+      where: { username },
+    });
+
+    if (checks.isNuldefined(friend)) {
+      serve(res, codes.BAD_REQUEST, "No user with that username");
+      return;
+    }
+
+    const friendId = friend.id;
+
     const deleted = await Friend.destroy({
       where: {
         userId: uid,
