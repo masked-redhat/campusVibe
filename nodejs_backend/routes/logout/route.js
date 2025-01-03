@@ -1,32 +1,17 @@
 import { Router } from "express";
-import authorization from "../../middlewares/auth.js";
 import Tokens from "../../models/ODM/tokens.js";
 import codes from "../../utils/codes.js";
 import { serve } from "../../utils/response.js";
 import MESSAGES from "../../constants/messages/global.js";
-import checks from "../../utils/checks.js";
+import TokenUsers from "../../models/ODM/token_user.js";
 
 const router = Router();
 
 router.get("/", async (req, res) => {
-  const username = req.username;
-
-  const tokens = authorization.getTokens(req);
-
-  const accessToken = new Tokens({
-      username,
-      token: tokens.accessToken,
-      tokenType: "access",
-    }),
-    refreshToken = new Tokens({
-      username,
-      token: tokens.refreshToken,
-      tokenType: "refresh",
-    });
-
+  const token = req.token;
   try {
-    if (!checks.isNuldefined(tokens.accessToken)) await accessToken.save();
-    if (!checks.isNuldefined(tokens.refreshToken)) await refreshToken.save();
+    await Tokens.deleteOne({ token });
+    await TokenUsers.deleteOne({ token });
 
     serve(res, codes.OK, "Logged out successfully");
   } catch (err) {

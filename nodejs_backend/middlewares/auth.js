@@ -105,6 +105,8 @@ const getUserData = async (req, res) => {
     return;
   }
 
+  req.token = token;
+
   try {
     const tokenObj = await Tokens.findOne({ token });
 
@@ -149,7 +151,7 @@ const verifyUser = async (userData, res) => {
 
     if (verified === false) {
       serve(res, codes.FORBIDDEN, message);
-      return;
+      return false;
     }
 
     return true;
@@ -157,12 +159,14 @@ const verifyUser = async (userData, res) => {
     console.log(err);
 
     serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-    return;
+    return false;
   }
 };
 
 const validateUser = async (req, res, next) => {
   const userData = await getUserData(req, res);
+  if (checks.isNuldefined(userData)) return;
+  
   const verified = await verifyUser(userData, res);
 
   if (verified === true) {
@@ -170,8 +174,6 @@ const validateUser = async (req, res, next) => {
     next();
     return;
   }
-
-  serve(res, codes.FORBIDDEN, m.TOKEN_INVALID);
 };
 
 const authorization = {
