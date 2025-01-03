@@ -20,7 +20,7 @@ router.get("/", async (req, res) => {
 
   try {
     const friends = await Friend.findAll({
-      attributes: { exclude: ["updatedAt", "id"] },
+      attributes: { exclude: ["updatedAt", "id", "userId", "friendId"] },
       where: {
         [Op.or]: [{ userId: uid }, { friendId: uid }],
         requestAccepted: true,
@@ -33,7 +33,6 @@ router.get("/", async (req, res) => {
       ],
     });
 
-    console.log(friends);
     serve(res, codes.OK, "Friends", {
       friends,
       offsetNext: offset + friends.length,

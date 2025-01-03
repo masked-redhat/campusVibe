@@ -38,7 +38,7 @@ router.get("/", async (req, res) => {
 
   try {
     const requests = await Friend.findAll({
-      attributes: { exclude: ["updatedAt", "id"] },
+      attributes: { exclude: ["updatedAt", "id", "userId", "friendId"] },
       where: {
         ...whereObj,
         requestAccepted: accepted,
@@ -71,7 +71,7 @@ router.get("/all", async (req, res) => {
 
   try {
     const requests = await Friend.findAll({
-      attributes: { exclude: ["updatedAt", "id"] },
+      attributes: { exclude: ["updatedAt", "id", "userId", "friendId"] },
       where: {
         [Op.or]: [{ userId: uid }, { friendId: uid }],
         requestAccepted: false,
