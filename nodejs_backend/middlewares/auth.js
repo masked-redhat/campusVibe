@@ -58,7 +58,10 @@ const setupAuth = async (userData, res) => {
 };
 
 const getUserData = async (req, res) => {
-  const token = req.cookies[TOKEN._];
+  const authHeader = req.headers["authorization"];
+  let token = authHeader && authHeader.split(" ")[1];
+
+  if (checks.isNuldefined(token)) token = req.cookies[TOKEN._];
 
   if (checks.isNuldefined(token)) {
     serve(res, codes.BAD_REQUEST, m.NO_TOKEN);
