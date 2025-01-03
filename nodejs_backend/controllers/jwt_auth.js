@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import codes from "../utils/codes.js";
 import { TOKEN } from "../constants/auth.js";
-import message from "../constants/messages/jwt_auth.js";
+import { MESSAGES as message } from "../constants/messages/jwt_auth.js";
 
 const JWT_SECRET_KEY = TOKEN.SECRET;
 
