@@ -2,6 +2,7 @@
 
 // User Auth setup and Validation
 
+import auth from "../controllers/jwt_auth.js";
 import checks from "../utils/checks.js";
 import { COOKIE } from "../constants/auth.js";
 import User from "../models/ORM/user.js";
@@ -12,6 +13,7 @@ import { MESSAGES as loginM } from "../constants/messages/login.js";
 import { MESSAGES as tokenM } from "../constants/messages/jwt_auth.js";
 import MESSAGES from "../constants/messages/global.js";
 import crypto from "crypto";
+import TokenUsers from "../models/ODM/token_user.js";
 
 const m = { ...loginM, ...tokenM };
 
@@ -35,11 +37,23 @@ const generateRandomToken = (length = 32) => {
 };
 
 const setupAuth = async (userData, res) => {
-  const token = generateRandomToken();
+  let token;
+  do {
+    token = generateRandomToken();
+  } while (!checks.isNuldefined(await Tokens.findOne({ token })));
+
+  // generate access and refresh tokens
+  const tokenizer = new auth.JwtTokenizer({ token }, "token");
+  const jwtTokens = tokenizer.getTokens();
 
   // create token
   try {
-    await Tokens.create({ token, userData });
+    const token_ = await Tokens.create({ token, jwtTokens });
+
+    if (!checks.isNuldefined(token_)) {
+      const tokenUser_ = await TokenUsers.create({ token, userData });
+      if (checks.isNuldefined(tokenUser_)) await Tokens.deleteOne(token_);
+    } else throw new Error("Token generation failed");
   } catch (err) {
     console.log(err);
 
@@ -55,6 +69,29 @@ const setupAuth = async (userData, res) => {
   });
 
   return token;
+};
+
+const verifyJwtTokens = async (token, jwtTokens) => {
+  const validator = new auth.JwtValidator(
+    jwtTokens.accessToken,
+    (ent) => ent.token === token
+  );
+
+  await validator.validate();
+
+  if (validator.getVerificationStatus() === true) return true;
+
+  validator.token = jwtTokens.refreshToken;
+  await validator.validate();
+
+  if (validator.getVerificationStatus() === false) return false;
+
+  const tokenizer = new auth.JwtTokenizer({ token }, "token");
+  const newJwtTokens = tokenizer.getTokens();
+
+  await Tokens.updateOne({ token }, { jwtTokens: newJwtTokens });
+
+  return true;
 };
 
 const getUserData = async (req, res) => {
@@ -76,7 +113,12 @@ const getUserData = async (req, res) => {
       return;
     }
 
-    const userData = tokenObj.userData;
+    if ((await verifyJwtTokens(token, tokenObj.jwtTokens)) === false) {
+      serve(res, codes.FORBIDDEN, m.TOKEN_INVALID);
+      return;
+    }
+
+    const userData = (await TokenUsers.findOne({ token }))?.userData;
     if (checks.isNuldefined(userData)) {
       serve(res, codes.BAD_REQUEST, m.NO_USERDATA);
       return;

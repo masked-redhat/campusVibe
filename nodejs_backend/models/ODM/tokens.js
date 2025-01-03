@@ -3,9 +3,9 @@ import { COOKIE } from "../../constants/auth.js";
 
 const tokenSchema = new Schema({
   token: { type: String, required: true },
-  userData: {
-    type: Object,
-    required: true,
+  jwtTokens: {
+    accessToken: String,
+    refreshToken: String,
   },
   expiry: {
     type: Date,
