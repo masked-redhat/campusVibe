@@ -10,6 +10,7 @@ import { ForeignKeyConstraintError, literal, ValidationError } from "sequelize";
 import User from "../../models/ORM/user.js";
 import PostCommentVote from "../../models/ORM/post/post_comments_votes.js";
 import limits from "../../constants/limits.js";
+import transaction from "../../db/sql/transaction.js";
 
 const router = Router();
 
@@ -79,18 +80,25 @@ router.post("/", async (req, res) => {
   const images = req.files?.map((val) => val.filename) ?? [];
   const replyId = checks.isNuldefined(commentId) ? null : commentId;
 
+  const t = await transaction();
   try {
-    const postComment = await PostComment.create({
-      postId,
-      userId: req.user.id,
-      images,
-      comment,
-      replyId,
-    });
+    const postComment = await PostComment.create(
+      {
+        postId,
+        userId: req.user.id,
+        images,
+        comment,
+        replyId,
+      },
+      { transaction: t }
+    );
 
-    console.log(postComment);
+    await t.commit();
+
+    serve(res, codes.CREATED, m.COMMENTED);
   } catch (err) {
     console.log(err);
+    await t.rollback();
 
     if (err instanceof ValidationError) {
       serve(res, codes.BAD_REQUEST, m.INVALID_VALUES);
@@ -103,10 +111,7 @@ router.post("/", async (req, res) => {
     }
 
     serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-    return;
   }
-
-  serve(res, codes.CREATED, m.COMMENTED);
 });
 
 router.patch("/", async (req, res) => {
@@ -171,21 +176,24 @@ router.delete("/", async (req, res) => {
     return;
   }
 
+  const t = await transaction();
   try {
     const deleted = await PostComment.destroy({
       where: { id: commentId },
       individualHooks: true,
+      transaction: t,
     });
 
-    console.log(deleted);
+    await t.commit();
+
+    serve(res, codes.NO_CONTENT);
   } catch (err) {
     console.log(err);
+    await t.rollback();
 
     serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
     return;
   }
-
-  serve(res, codes.NO_CONTENT);
 });
 
 router.get("/reply", async (req, res) => {

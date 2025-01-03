@@ -39,10 +39,17 @@ db.define("PostComment", {
   upvotes: {
     type: DT.INTEGER,
     defaultValue: 0,
+    allowNull: false,
   },
   downvotes: {
     type: DT.INTEGER,
     defaultValue: 0,
+    allowNull: false,
+  },
+  replies: {
+    type: DT.INTEGER,
+    defaultValue: 0,
+    allowNull: false,
   },
   votes: {
     type: DT.VIRTUAL,
@@ -70,11 +77,31 @@ PostComment.hasMany(PostComment, {
 PostComment.belongsTo(PostComment, { foreignKey: "replyId" });
 
 PostComment.afterCreate(async (comment, options) => {
-  await Post.increment("comments", { by: 1, where: { id: comment.postId } });
+  const transaction = options.transaction;
+  await Post.increment("comments", {
+    by: 1,
+    where: { id: comment.postId },
+    transaction,
+  });
+  await PostComment.increment("replies", {
+    by: 1,
+    where: { id: replyId },
+    transaction,
+  });
 });
 
 PostComment.afterDestroy(async (comment, options) => {
-  await Post.decrement("comments", { by: 1, where: { id: comment.postId } });
+  const transaction = options.transaction;
+  await Post.decrement("comments", {
+    by: 1,
+    where: { id: comment.postId },
+    transaction,
+  });
+  await PostComment.decrement("replies", {
+    by: 1,
+    where: { id: replyId },
+    transaction,
+  });
 });
 
 export default PostComment;
