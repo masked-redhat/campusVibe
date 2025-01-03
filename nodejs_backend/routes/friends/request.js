@@ -8,7 +8,7 @@ import checks from "../../utils/checks.js";
 import { simpleOrder } from "../posts/route.js";
 import { Op } from "sequelize";
 import limits from "../../constants/limits.js";
-import { userInfoByAlias } from "../../constants/db.js";
+import { userInfoByAlias } from "../../db/sql/commands.js";
 
 const router = Router();
 

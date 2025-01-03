@@ -9,7 +9,7 @@ import { simpleOrder } from "./route.js";
 import checks from "../../utils/checks.js";
 import limits from "../../constants/limits.js";
 import transaction from "../../db/sql/transaction.js";
-import { userInfoInclusion } from "../../constants/db.js";
+import { userInfoInclusion } from "../../db/sql/commands.js";
 
 const router = Router();
 

@@ -9,7 +9,7 @@ import { ValidationError } from "sequelize";
 import { LikeRouter } from "./like.js";
 import { CommentRouter } from "./comment.js";
 import limits from "../../constants/limits.js";
-import { userInfoInclusion } from "../../constants/db.js";
+import { userInfoInclusion } from "../../db/sql/commands.js";
 
 const router = Router();
 

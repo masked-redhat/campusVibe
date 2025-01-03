@@ -7,7 +7,7 @@ import { Op } from "sequelize";
 import checks from "../../utils/checks.js";
 import { RequestRouter } from "./request.js";
 import limits from "../../constants/limits.js";
-import { userInfoByAlias } from "../../constants/db.js";
+import { userInfoByAlias } from "../../db/sql/commands.js";
 
 const router = Router();
 
