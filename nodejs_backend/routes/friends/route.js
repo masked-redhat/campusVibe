@@ -4,10 +4,10 @@ import codes from "../../utils/codes.js";
 import MESSAGES from "../../constants/messages/global.js";
 import Friend, { alias } from "../../models/ORM/friends.js";
 import { Op } from "sequelize";
-import User from "../../models/ORM/user.js";
 import checks from "../../utils/checks.js";
 import { RequestRouter } from "./request.js";
 import limits from "../../constants/limits.js";
+import { userInfoByAlias } from "../../constants/db.js";
 
 const router = Router();
 
@@ -28,18 +28,8 @@ router.get("/", async (req, res) => {
       offset,
       limit: LIMIT,
       include: [
-        {
-          model: User,
-          as: alias.userId,
-          foreignKey: "userId",
-          attributes: ["username"],
-        },
-        {
-          model: User,
-          as: alias.friendId,
-          foreignKey: "friendId",
-          attributes: ["username"],
-        },
+        userInfoByAlias(alias.userId, "userId"),
+        userInfoByAlias(alias.friendId, "friendId"),
       ],
     });
 

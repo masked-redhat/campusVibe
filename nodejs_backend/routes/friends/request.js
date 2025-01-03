@@ -8,6 +8,7 @@ import checks from "../../utils/checks.js";
 import { simpleOrder } from "../posts/route.js";
 import { Op } from "sequelize";
 import limits from "../../constants/limits.js";
+import { userInfoByAlias } from "../../constants/db.js";
 
 const router = Router();
 
@@ -47,18 +48,8 @@ router.get("/", async (req, res) => {
       limit: LIMIT,
       order: simpleOrder("updatedAt"),
       include: [
-        {
-          model: User,
-          as: alias.userId,
-          foreignKey: "userId",
-          attributes: ["username"],
-        },
-        {
-          model: User,
-          as: alias.friendId,
-          foreignKey: "friendId",
-          attributes: ["username"],
-        },
+        userInfoByAlias(alias.userId, "userId"),
+        userInfoByAlias(alias.friendId, "friendId"),
       ],
     });
 
@@ -89,18 +80,8 @@ router.get("/all", async (req, res) => {
       limit: LIMIT,
       order: simpleOrder("updatedAt"),
       include: [
-        {
-          model: User,
-          as: alias.userId,
-          foreignKey: "userId",
-          attributes: ["username"],
-        },
-        {
-          model: User,
-          as: alias.friendId,
-          foreignKey: "friendId",
-          attributes: ["username"],
-        },
+        userInfoByAlias(alias.userId, "userId"),
+        userInfoByAlias(alias.friendId, "friendId"),
       ],
     });
 

@@ -18,6 +18,13 @@ export const userInfoInclusion = {
   attributes: ["username"],
 };
 
+export const userInfoByAlias = (alias, foreignKey = "userId") => {
+  const info = userInfoInclusion;
+  info.foreignKey = foreignKey;
+  info.as = alias;
+  return info;
+};
+
 export const Expiry = {
   EmailTokens: 5 * 60 * 1000,
 };
