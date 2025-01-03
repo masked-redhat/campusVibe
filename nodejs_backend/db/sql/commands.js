@@ -7,8 +7,6 @@ export const userInfoInclusion = {
 };
 
 export const userInfoByAlias = (alias, foreignKey = "userId") => {
-  const info = userInfoInclusion;
-  info.foreignKey = foreignKey;
-  info.as = alias;
+  const info = { ...userInfoInclusion, foreignKey, as: alias };
   return info;
 };
