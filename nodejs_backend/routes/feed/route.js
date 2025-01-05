@@ -8,6 +8,7 @@ import limits from "../../constants/limits.js";
 import Friend from "../../models/ORM/friends.js";
 import { Op, literal } from "sequelize";
 import User from "../../models/ORM/user.js";
+import { PostRouter } from "./post.js";
 
 const router = Router();
 
@@ -96,6 +97,8 @@ router.get("/", async (req, res) => {
     serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
   }
 });
+
+router.use('/post', PostRouter)
 
 router.all("*", (_, res) => {
   res.sendStatus(405);
