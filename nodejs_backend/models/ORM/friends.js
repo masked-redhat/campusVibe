@@ -1,6 +1,8 @@
 import models from "../../constants/db.js";
-import { DataTypes as DT } from "sequelize";
+import { DataTypes as DT, Op } from "sequelize";
 import db from "../../db/sql/connection.js";
+import Profile from "./profile.js";
+import User from "./user.js";
 
 db.define(
   "Friend",
@@ -47,6 +49,35 @@ db.define(
 );
 
 const Friend = db.models.Friend;
+
+Friend.beforeUpdate(async (request, options) => {
+  const transaction = options.transaction;
+
+  const userIds = [request.userId, request.friendId];
+  console.log(request.dataValues.rw, request.previous());
+  if (
+    request.dataValues.requestAccepted === true &&
+    request.previous().requestAccepted === false
+  ) {
+    console.log("hello");
+    await Profile.increment("friends", {
+      by: 1,
+      where: { userId: userIds },
+      transaction,
+    });
+  }
+});
+
+Friend.afterDestroy(async (request, options) => {
+  const transaction = options.transaction;
+
+  const userIds = [request.userId, request.friendId];
+  await Profile.decrement("friends", {
+    by: 1,
+    where: { userId: userIds },
+    transaction,
+  });
+});
 
 export const alias = {
   userId: "requestedBy",

@@ -9,6 +9,7 @@ import { simpleOrder } from "../posts/route.js";
 import { Op } from "sequelize";
 import limits from "../../constants/limits.js";
 import { userInfoByAlias } from "../../db/sql/commands.js";
+import transaction from "../../db/sql/transaction.js";
 
 const router = Router();
 
@@ -136,9 +137,10 @@ router.post("/", async (req, res) => {
       serve(res, codes.BAD_REQUEST, "Already friends");
       return;
     } else if (friendFound.requestRejected === true) {
-      await Friend.update({
-        requestRejected: false,
-      });
+      await Friend.update(
+        { requestRejected: false },
+        { individualHooks: true }
+      );
     } else if (
       friendFound.requestAccepted === false &&
       friendFound.requestRejected === false
@@ -159,6 +161,7 @@ router.post("/accept", async (req, res) => {
   const uid = req.user.id;
   const { username } = req.body;
 
+  const t = await transaction();
   try {
     const friend = await User.findOne({
       attributes: ["id"],
@@ -179,12 +182,16 @@ router.post("/accept", async (req, res) => {
           userId: friendId,
           friendId: uid,
         },
+        individualHooks: true,
+        transaction: t,
       }
     );
 
+    await t.commit();
     serve(res, codes.OK, "Friend Request Accepted");
   } catch (err) {
     console.log(err);
+    await t.rollback();
 
     serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
   }
@@ -213,6 +220,7 @@ router.post("/reject", async (req, res) => {
         where: {
           userId: friendId,
           friendId: uid,
+          individualHooks: true,
         },
       }
     );

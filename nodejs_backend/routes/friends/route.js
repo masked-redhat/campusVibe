@@ -8,6 +8,8 @@ import checks from "../../utils/checks.js";
 import { RequestRouter } from "./request.js";
 import limits from "../../constants/limits.js";
 import { userInfoByAlias } from "../../db/sql/commands.js";
+import User from "../../models/ORM/user.js";
+import transaction from "../../db/sql/transaction.js";
 
 const router = Router();
 
@@ -48,9 +50,27 @@ router.use("/request", RequestRouter);
 
 router.delete("/", async (req, res) => {
   const uid = req.user.id;
-  const { friendId } = req.body;
+  const { username } = req.query;
 
+  if (checks.isNuldefined(username)) {
+    serve(res, codes.BAD_REQUEST, "No username found in request");
+    return;
+  }
+
+  const t = await transaction();
   try {
+    const friend = await User.findOne({
+      attributes: ["id"],
+      where: { username },
+    });
+
+    if (checks.isNuldefined(friend)) {
+      serve(res, codes.BAD_REQUEST, "No user with that username");
+      return;
+    }
+
+    const friendId = friend.id;
+
     const friendDelete = await Friend.destroy({
       where: {
         [Op.or]: [
@@ -59,11 +79,16 @@ router.delete("/", async (req, res) => {
         ],
         requestAccepted: true,
       },
+      individualHooks: true,
+      transaction: t,
     });
+
+    await t.commit();
 
     serve(res, codes.NO_CONTENT);
   } catch (err) {
     console.log(err);
+    await t.rollback();
 
     serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
   }

@@ -6,6 +6,7 @@ import PostLike from "./post/post_likes.js";
 import PostComment from "./post/post_comments.js";
 import PostCommentVote from "./post/post_comments_votes.js";
 import Friend, { alias } from "./friends.js";
+import Profile from "./profile.js";
 
 db.define("User", {
   id: models.SQLMODEL.ID,
@@ -65,5 +66,8 @@ Friend.belongsTo(User, {
   as: alias.friendId,
   foreignKey: "friendId",
 });
+
+User.hasOne(Profile, { foreignKey, onDelete: "CASCADE" });
+Profile.belongsTo(User, { foreignKey });
 
 export default User;
