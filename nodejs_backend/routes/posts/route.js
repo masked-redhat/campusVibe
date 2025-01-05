@@ -10,6 +10,7 @@ import { LikeRouter } from "./like.js";
 import { CommentRouter } from "./comment.js";
 import limits from "../../constants/limits.js";
 import { userInfoInclusion } from "../../db/sql/commands.js";
+import transaction from "../../db/sql/transaction.js";
 
 const router = Router();
 
@@ -48,16 +49,23 @@ router.post("/", async (req, res) => {
   const images = req.files?.map((val) => val.filename) ?? [];
 
   let post;
+  const t = await transaction();
   try {
-    post = await Post.create({
-      userId: req.user.id,
-      title: title ?? null,
-      content: content ?? null,
-      images: images ?? [],
-      reposts: reposts ?? [],
-    });
+    post = await Post.create(
+      {
+        userId: req.user.id,
+        title: title ?? null,
+        content: content ?? null,
+        images: images ?? [],
+        reposts: reposts ?? [],
+      },
+      { transaction: t }
+    );
+
+    await t.commit();
   } catch (err) {
     console.log(err);
+    await t.rollback();
 
     if (err instanceof ValidationError) {
       serve(res, codes.BAD_REQUEST, m.INVALID_VALUES);
@@ -138,10 +146,15 @@ router.put("/", async (req, res) => {
 router.delete("/", async (req, res) => {
   const { postId } = req.query;
 
+  const t = await transaction();
   try {
     const post = await Post.destroy({
       where: { id: postId, userId: req.user.id },
+      individualHooks: true,
+      transaction: t,
     });
+
+    await t.commit();
 
     if (post === 0) {
       serve(res, codes.BAD_REQUEST, m.ID_WRONG_NO_ACCESS);
@@ -149,6 +162,7 @@ router.delete("/", async (req, res) => {
     }
   } catch (err) {
     console.log(err);
+    await t.rollback();
 
     serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
     return;

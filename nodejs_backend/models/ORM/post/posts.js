@@ -5,6 +5,7 @@ import { gzipSync, gunzipSync } from "zlib";
 import checks from "../../../utils/checks.js";
 import PostLike from "./post_likes.js";
 import PostComment from "./post_comments.js";
+import Profile from "../profile.js";
 
 db.define("Post", {
   id: models.SQLMODEL.ID,
@@ -69,5 +70,25 @@ PostLike.belongsTo(Post, { foreignKey: "postId" });
 
 Post.hasMany(PostComment, { foreignKey: "postId", onDelete: "SET NULL" });
 PostComment.belongsTo(Post, { foreignKey: "postId" });
+
+Post.afterCreate(async (post, options) => {
+  const transaction = options.transaction;
+
+  await Profile.increment("posts", {
+    by: 1,
+    where: { userId: post.userId },
+    transaction,
+  });
+});
+
+Post.afterDestroy(async (post, options) => {
+  const transaction = options.transaction;
+
+  await Profile.decrement("posts", {
+    by: 1,
+    where: { userId: post.userId },
+    transaction,
+  });
+});
 
 export default Post;
