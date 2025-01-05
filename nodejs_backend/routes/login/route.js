@@ -185,8 +185,14 @@ router.post("/email", async (req, res) => {
   try {
     let email = await EmailTokens.findOne({ username, otp });
 
+    if (checks.isNuldefined(email)) {
+      serve(res, codes.BAD_REQUEST, m.OTP_INVALID);
+      return;
+    }
+
     if (Date.now() > email.expiry) {
       serve(res, codes.BAD_REQUEST, m.OTP_TIMEOUT);
+      return;
     }
 
     if (checks.isNuldefined(email)) {
