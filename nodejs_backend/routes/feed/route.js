@@ -9,6 +9,7 @@ import Friend from "../../models/ORM/friends.js";
 import { Op, literal } from "sequelize";
 import User from "../../models/ORM/user.js";
 import { PostRouter } from "./post.js";
+import { userInfoInclusion } from "../../db/sql/commands.js";
 
 const router = Router();
 
@@ -65,6 +66,7 @@ router.get("/", async (req, res) => {
     }
 
     const posts = await Post.findAll({
+      attributes: { exclude: "userId" },
       where: {
         userId:
           type === types.FORYOU
@@ -80,11 +82,7 @@ router.get("/", async (req, res) => {
       ],
       limit: LIMIT,
       offset,
-      include: {
-        model: User,
-        foreignKey: "userId",
-        attributes: ["username"],
-      },
+      include: [userInfoInclusion],
     });
 
     serve(res, codes.OK, "Your Feed", {
@@ -98,7 +96,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.use('/post', PostRouter)
+router.use("/post", PostRouter);
 
 router.all("*", (_, res) => {
   res.sendStatus(405);
