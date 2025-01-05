@@ -6,6 +6,7 @@ import PostCommentVote from "./post_comments_votes.js";
 import checks from "../../../utils/checks.js";
 import { gzipSync, gunzipSync } from "zlib";
 import User from "../user.js";
+import Profile from "../profile.js";
 
 db.define("PostComment", {
   id: models.SQLMODEL.ID,
@@ -83,9 +84,15 @@ PostComment.afterCreate(async (comment, options) => {
     where: { id: comment.postId },
     transaction,
   });
-  await PostComment.increment("replies", {
+  if (!checks.isNuldefined(comment.replyId))
+    await PostComment.increment("replies", {
+      by: 1,
+      where: { id: replyId },
+      transaction,
+    });
+  await Profile.increment("comments", {
     by: 1,
-    where: { id: replyId },
+    where: { userId: comment.userId },
     transaction,
   });
 });
@@ -97,9 +104,15 @@ PostComment.afterDestroy(async (comment, options) => {
     where: { id: comment.postId },
     transaction,
   });
-  await PostComment.decrement("replies", {
+  if (!checks.isNuldefined(comment.replyId))
+    await PostComment.decrement("replies", {
+      by: 1,
+      where: { id: replyId },
+      transaction,
+    });
+  await Profile.decrement("comments", {
     by: 1,
-    where: { id: replyId },
+    where: { userId: comment.userId },
     transaction,
   });
 });
