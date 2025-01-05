@@ -13,7 +13,7 @@ import { MESSAGES as loginM } from "../constants/messages/login.js";
 import { MESSAGES as tokenM } from "../constants/messages/jwt_auth.js";
 import MESSAGES from "../constants/messages/global.js";
 import crypto from "crypto";
-import TokenUsers from "../models/ODM/token_user.js";
+import { getUserData } from "../db/commands/userdata.js";
 
 const m = { ...loginM, ...tokenM };
 
@@ -43,17 +43,12 @@ const setupAuth = async (userData, res) => {
   } while (!checks.isNuldefined(await Tokens.findOne({ token })));
 
   // generate access and refresh tokens
-  const tokenizer = new auth.JwtTokenizer({ token }, "token");
+  const tokenizer = new auth.JwtTokenizer(userData);
   const jwtTokens = tokenizer.getTokens();
 
   // create token
   try {
-    const token_ = await Tokens.create({ token, jwtTokens });
-
-    if (!checks.isNuldefined(token_)) {
-      const tokenUser_ = await TokenUsers.create({ token, userData });
-      if (checks.isNuldefined(tokenUser_)) await Tokens.deleteOne(token_);
-    } else throw new Error("Token generation failed");
+    await Tokens.create({ token, jwtTokens });
   } catch (err) {
     console.log(err);
 
@@ -71,30 +66,44 @@ const setupAuth = async (userData, res) => {
   return token;
 };
 
+const verifyFunc = async (ent) => {
+  try {
+    await User.findOne({ where: { username: ent.username } });
+  } catch (err) {
+    console.log(err);
+    return false;
+  }
+  return true;
+};
+
 const verifyJwtTokens = async (token, jwtTokens) => {
-  const validator = new auth.JwtValidator(
-    jwtTokens.accessToken,
-    (ent) => ent.token === token
-  );
+  const validator = new auth.JwtValidator(jwtTokens.accessToken, verifyFunc);
 
   await validator.validate();
 
-  if (validator.getVerificationStatus() === true) return true;
+  if (validator.getVerificationStatus() === true)
+    return [true, validator.getEntityInfo()];
 
   validator.token = jwtTokens.refreshToken;
   await validator.validate();
 
-  if (validator.getVerificationStatus() === false) return false;
+  if (validator.getVerificationStatus() === false) return [false, null];
 
-  const tokenizer = new auth.JwtTokenizer({ token }, "token");
-  const newJwtTokens = tokenizer.getTokens();
+  const username = validator.getEntityInfo().username;
 
-  await Tokens.updateOne({ token }, { jwtTokens: newJwtTokens });
+  const userData = await getUserData(username);
 
-  return true;
+  const newTokens = new auth.JwtTokenizer(userData).getTokens();
+
+  await Tokens.updateOne(
+    { token },
+    { jwtTokens: newTokens, expiry: Date.now() + COOKIE.MAXAGE.REFRESH }
+  );
+
+  return [true, userData];
 };
 
-const getUserData = async (req, res) => {
+const getUserDataFromToken = async (req, res) => {
   const authHeader = req.headers["authorization"];
   let token = authHeader && authHeader.split(" ")[1];
 
@@ -108,19 +117,23 @@ const getUserData = async (req, res) => {
   req.token = token;
 
   try {
-    const tokenObj = await Tokens.findOne({ token });
+    const tokenObj = await Tokens.findOne({ token }).select("jwtTokens expiry");
 
     if (checks.isNuldefined(tokenObj) || Date.now() > tokenObj.expiry) {
       serve(res, codes.BAD_REQUEST, m.TOKEN_INVALID);
       return;
     }
 
-    if ((await verifyJwtTokens(token, tokenObj.jwtTokens)) === false) {
+    const [verified, userData] = await verifyJwtTokens(
+      token,
+      tokenObj.jwtTokens
+    );
+
+    if (verified === false) {
       serve(res, codes.FORBIDDEN, m.TOKEN_INVALID);
       return;
     }
 
-    const userData = (await TokenUsers.findOne({ token }))?.userData;
     if (checks.isNuldefined(userData)) {
       serve(res, codes.BAD_REQUEST, m.NO_USERDATA);
       return;
@@ -164,9 +177,9 @@ const verifyUser = async (userData, res) => {
 };
 
 const validateUser = async (req, res, next) => {
-  const userData = await getUserData(req, res);
+  const userData = await getUserDataFromToken(req, res);
   if (checks.isNuldefined(userData)) return;
-  
+
   const verified = await verifyUser(userData, res);
 
   if (verified === true) {

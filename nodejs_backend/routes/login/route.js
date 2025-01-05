@@ -11,6 +11,9 @@ import emailValidator from "deep-email-validator";
 import emailVerifier from "../../utils/email.js";
 import EmailTokens from "../../models/ODM/email_verification_tokens.js";
 import authorization from "../../middlewares/auth.js";
+import { getUserData } from "../../db/commands/userdata.js";
+import transaction from "../../db/sql/transaction.js";
+import Profile from "../../models/ORM/profile.js";
 
 const router = Router();
 
@@ -48,7 +51,9 @@ router.post("/", async (req, res) => {
       return;
     }
 
-    const token = await authorization.setupAuth({ id: user.id, username }, res);
+    const userData = await getUserData(username);
+
+    const token = await authorization.setupAuth(userData, res);
 
     if (!checks.isNuldefined(token))
       serve(res, codes.OK, m.LOGGED_IN, { token });
@@ -138,8 +143,10 @@ router.post("/new", async (req, res) => {
   // save the email and the user and give response
   {
     let user, email;
+    const t = await transaction();
     try {
-      user = await userObj.save();
+      user = await userObj.save({ transaction: t });
+      await Profile.create({ userId: user.id }, { transaction: t });
       email = await emailObj.save();
 
       await emailVerifier.verify(
@@ -148,11 +155,16 @@ router.post("/new", async (req, res) => {
         `OTP : ${emailOtp}`
       );
 
+      await t.commit();
       serve(res, codes.CREATED, m.CREATED);
     } catch (err) {
       console.log(err);
+      await t.rollback();
 
-      if (checks.isNuldefined(email)) await user.destroy();
+      try {
+        await EmailTokens.deleteOne(email);
+        await user.destroy();
+      } catch {}
 
       serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
     }
@@ -206,6 +218,11 @@ router.post("/email", async (req, res) => {
 
 router.get("/email/resend", async (req, res) => {
   const { username } = req.query;
+
+  if (checks.isNuldefined(username)) {
+    serve(res, codes.BAD_REQUEST, m.USER_NOT_FOUND);
+    return;
+  }
 
   try {
     const user = await User.findOne({ where: { username } });
