@@ -5,7 +5,6 @@ import Post from "./posts.js";
 import PostCommentVote from "./post_comments_votes.js";
 import checks from "../../../utils/checks.js";
 import { gzipSync, gunzipSync } from "zlib";
-import User from "../user.js";
 import Profile from "../profile.js";
 
 db.define("PostComment", {
