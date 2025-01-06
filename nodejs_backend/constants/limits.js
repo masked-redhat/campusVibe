@@ -13,6 +13,7 @@ const limits = {
   },
   FORUM: {
     _: 10,
+    VOTE: 10,
     ANSWER: {
       _: 10,
       COMMENT: 30,

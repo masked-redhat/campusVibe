@@ -9,6 +9,8 @@ import MESSAGES from "../../constants/messages/global.js";
 import { serve } from "../../utils/response.js";
 import User from "../../models/ORM/user.js";
 import transaction from "../../db/sql/transaction.js";
+import { VoteRouter } from "./forum_vote.js";
+import { AnswerRouter } from "./answer.js";
 
 const router = Router();
 
@@ -56,11 +58,17 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
   const userId = req.user.id;
   const { question, content } = req.body;
+  const images = req.files?.map((val) => val.filename) ?? [];
+
+  if (checks.isNuldefined(question)) {
+    serve(res, codes.BAD_REQUEST, "No question given");
+    return;
+  }
 
   const t = await transaction();
   try {
     const forum = await Forum.create(
-      { userId, question, content },
+      { userId, question, content, images },
       { attributes: ["id"], transaction: t }
     );
 
@@ -77,10 +85,12 @@ router.post("/", async (req, res) => {
 router.patch("/", async (req, res) => {
   const userId = req.user.id;
   const { question, content, forumId } = req.body;
+  const images = req.files?.map((val) => val.filename) ?? [];
 
   const updateData = {
     ...(question ? { question } : {}),
     ...(content ? { content } : {}),
+    ...(checks.isNuldefined(images) ? { images } : {}),
   };
 
   if (checks.isNuldefined(updateData)) {
@@ -101,8 +111,9 @@ router.patch("/", async (req, res) => {
 router.put("/", async (req, res) => {
   const userId = req.user.id;
   const { question = null, content = null, forumId } = req.body;
+  const images = req.files?.map((val) => val.filename) ?? [];
 
-  const updateData = { question, content };
+  const updateData = { question, content, images };
 
   if (checks.isNuldefined(updateData)) {
     serve(res, codes.BAD_REQUEST, "Nothing to patch");
@@ -140,6 +151,10 @@ router.delete("/", async (req, res) => {
     serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
   }
 });
+
+router.use("/vote", VoteRouter);
+
+router.use("/answer", AnswerRouter);
 
 router.all("*", (_, res) => {
   res.sendStatus(405);
