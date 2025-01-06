@@ -8,7 +8,7 @@ export const userInfoInclusion = {
   include: [
     {
       model: Profile,
-      attributes: { exclude: ["id", "userId"] },
+      attributes: { exclude: ["id", "userId", "interests", "friends", "posts", "comments", "createdAt", "updatedAt"] },
     },
   ],
 };
