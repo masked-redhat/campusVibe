@@ -11,6 +11,7 @@ import { CommentRouter } from "./comment.js";
 import limits from "../../constants/limits.js";
 import { userInfoInclusion } from "../../db/sql/commands.js";
 import transaction from "../../db/sql/transaction.js";
+import User from "../../models/ORM/user.js";
 
 const router = Router();
 
@@ -18,13 +19,20 @@ const LIMIT = limits.POST._;
 export const simpleOrder = (field) => [[field, "desc"]];
 
 router.get("/", async (req, res) => {
-  const { offset: rawOffset, userId } = req.query;
+  const { offset: rawOffset, username } = req.query;
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
 
   try {
+    const userId = username
+      ? await User.findOne({
+          attributes: ["id"],
+          where: { username },
+        })
+      : req.user.id;
+
     const posts = await Post.findAll({
       attributes: { exclude: ["userId"] },
-      where: { userId: userId ?? req.user.id },
+      where: { userId },
       offset,
       limit: LIMIT,
       order: simpleOrder("createdAt"),
