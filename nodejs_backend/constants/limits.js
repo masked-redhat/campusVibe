@@ -11,6 +11,13 @@ const limits = {
   FEED: {
     _: 30,
   },
+  FORUM: {
+    _: 10,
+    ANSWER: {
+      _: 10,
+      COMMENT: 30,
+    },
+  },
 };
 
 export default limits;
