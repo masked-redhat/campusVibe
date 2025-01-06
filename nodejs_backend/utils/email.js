@@ -1,21 +1,20 @@
 import nodemailer from "nodemailer";
-import env, { BACKEND, NODEMAILER } from "../constants/env.js";
-import bcryptjs from "bcryptjs";
+import { NODEMAILER } from "../constants/env.js";
 import google from "googleapis";
 
 const OAuth2 = google.Auth.OAuth2Client;
 
+const oauth2Client = new OAuth2(
+  NODEMAILER.CLIENT.ID,
+  NODEMAILER.CLIENT.SECRET,
+  NODEMAILER.URL
+);
+
+oauth2Client.setCredentials({
+  refresh_token: NODEMAILER.TOKEN.REFRESH,
+});
+
 const createTransporter = async () => {
-  const oauth2Client = new OAuth2(
-    NODEMAILER.CLIENT.ID,
-    NODEMAILER.CLIENT.SECRET,
-    NODEMAILER.URL
-  );
-
-  oauth2Client.setCredentials({
-    refresh_token: NODEMAILER.TOKEN.REFRESH,
-  });
-
   const accessToken = await new Promise((resolve, reject) => {
     oauth2Client.getAccessToken((err, token) => {
       if (err) {
