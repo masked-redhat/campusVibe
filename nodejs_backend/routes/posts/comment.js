@@ -28,9 +28,6 @@ router.get("/", async (req, res) => {
     console.log(err);
 
     postId = rawPostId;
-
-    serve(res, codes.BAD_REQUEST, m.NO_PROPER_FORMAT);
-    return;
   }
 
   if (checks.isNuldefined(postId)) {

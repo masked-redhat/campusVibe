@@ -30,6 +30,7 @@ db.define(
         }
       },
     },
+    images: DT.ARRAY(DT.STRING),
     upvotes: {
       type: DT.INTEGER,
       defaultValue: 0,

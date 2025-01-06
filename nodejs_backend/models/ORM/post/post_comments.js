@@ -78,15 +78,16 @@ PostComment.belongsTo(PostComment, { foreignKey: "replyId" });
 
 PostComment.afterCreate(async (comment, options) => {
   const transaction = options.transaction;
-  await Post.increment("comments", {
-    by: 1,
-    where: { id: comment.postId },
-    transaction,
-  });
+  if (checks.isNuldefined(comment.replyId))
+    await Post.increment("comments", {
+      by: 1,
+      where: { id: comment.postId },
+      transaction,
+    });
   if (!checks.isNuldefined(comment.replyId))
     await PostComment.increment("replies", {
       by: 1,
-      where: { id: replyId },
+      where: { id: comment.replyId },
       transaction,
     });
   await Profile.increment("comments", {
@@ -98,15 +99,16 @@ PostComment.afterCreate(async (comment, options) => {
 
 PostComment.afterDestroy(async (comment, options) => {
   const transaction = options.transaction;
-  await Post.decrement("comments", {
-    by: 1,
-    where: { id: comment.postId },
-    transaction,
-  });
+  if (checks.isNuldefined(comment.replyId))
+    await Post.decrement("comments", {
+      by: 1,
+      where: { id: comment.postId },
+      transaction,
+    });
   if (!checks.isNuldefined(comment.replyId))
     await PostComment.decrement("replies", {
       by: 1,
-      where: { id: replyId },
+      where: { id: comment.replyId },
       transaction,
     });
   await Profile.decrement("comments", {
