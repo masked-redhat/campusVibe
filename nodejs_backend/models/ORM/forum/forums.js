@@ -3,6 +3,9 @@ import { DataTypes as DT } from "sequelize";
 import db from "../../../db/sql/connection.js";
 import ForumVote from "./forum_votes.js";
 import Answer from "./answers.js";
+import Profile from "../profile.js";
+import checks from "../../../utils/checks.js";
+import { gzipSync, gunzipSync } from "zlib";
 
 db.define("Forum", {
   id: models.SQLMODEL.ID,
@@ -58,5 +61,25 @@ ForumVote.belongsTo(Forum, { foreignKey: "forumId" });
 
 Forum.hasMany(Answer, { foreignKey: "forumId", onDelete: "CASCADE" });
 Answer.belongsTo(Forum, { foreignKey: "forumId" });
+
+Forum.afterCreate(async (forum, options) => {
+  const transaction = options.transaction;
+
+  await Profile.increment("forums", {
+    by: 1,
+    where: { userId: forum.userId },
+    transaction,
+  });
+});
+
+Forum.afterDestroy(async (forum, options) => {
+  const transaction = options.transaction;
+
+  await Profile.decrement("forums", {
+    by: 1,
+    where: { userId: forum.userId },
+    transaction,
+  });
+});
 
 export default Forum;

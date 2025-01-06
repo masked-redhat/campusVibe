@@ -30,6 +30,7 @@ db.define("Profile", {
   interests: { type: DT.ARRAY(DT.STRING), allowNull: false, defaultValue: [] },
   friends: { type: DT.INTEGER, allowNull: false, defaultValue: 0 },
   posts: { type: DT.INTEGER, allowNull: false, defaultValue: 0 },
+  forums: { type: DT.INTEGER, allowNull: false, defaultValue: 0 },
   comments: { type: DT.INTEGER, allowNull: false, defaultValue: 0 },
   fullName: {
     type: DT.VIRTUAL,

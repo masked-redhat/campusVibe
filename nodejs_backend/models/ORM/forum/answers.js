@@ -4,6 +4,8 @@ import db from "../../../db/sql/connection.js";
 import AnswerVote from "./answer_votes.js";
 import Forum from "./forums.js";
 import AnswerComment from "./answer_comments.js";
+import checks from "../../../utils/checks.js";
+import { gzipSync, gunzipSync } from "zlib";
 
 db.define(
   "Answer",
