@@ -7,6 +7,12 @@ import PostComment from "./post/post_comments.js";
 import PostCommentVote from "./post/post_comments_votes.js";
 import Friend, { alias } from "./friends.js";
 import Profile from "./profile.js";
+import Forum from "./forum/forums.js";
+import ForumVote from "./forum/forum_votes.js";
+import Answer from "./forum/answers.js";
+import AnswerVote from "./forum/answer_votes.js";
+import AnswerComment from "./forum/answer_comments.js";
+import AnswerCommentVote from "./forum/answer_comment_votes.js";
 
 db.define("User", {
   id: models.SQLMODEL.ID,
@@ -69,5 +75,23 @@ Friend.belongsTo(User, {
 
 User.hasOne(Profile, { foreignKey, onDelete: "CASCADE" });
 Profile.belongsTo(User, { foreignKey });
+
+User.hasMany(Forum, { foreignKey, onDelete: "CASCADE" });
+Forum.belongsTo(User, { foreignKey });
+
+User.hasMany(ForumVote, { foreignKey, onDelete: "CASCADE" });
+ForumVote.belongsTo(User, { foreignKey });
+
+User.hasMany(Answer, { foreignKey, onDelete: "CASCADE" });
+Answer.belongsTo(User, { foreignKey });
+
+User.hasMany(AnswerVote, { foreignKey, onDelete: "CASCADE" });
+AnswerVote.belongsTo(User, { foreignKey });
+
+User.hasMany(AnswerComment, { foreignKey, onDelete: "CASCADE" });
+AnswerComment.belongsTo(User, { foreignKey });
+
+User.hasMany(AnswerCommentVote, { foreignKey, onDelete: "CASCADE" });
+AnswerCommentVote.belongsTo(User, { foreignKey });
 
 export default User;
