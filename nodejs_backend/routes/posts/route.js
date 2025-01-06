@@ -24,10 +24,12 @@ router.get("/", async (req, res) => {
 
   try {
     const userId = username
-      ? await User.findOne({
-          attributes: ["id"],
-          where: { username },
-        })
+      ? (
+          await User.findOne({
+            attributes: ["id"],
+            where: { username },
+          })
+        )?.id
       : req.user.id;
 
     const posts = await Post.findAll({
