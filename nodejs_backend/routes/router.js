@@ -4,8 +4,6 @@ import { PostsRouter } from "./posts/route.js";
 import { NewsRouter } from "./news/route.js";
 import { JobsRouter } from "./jobs/route.js";
 import { ForumsRouter } from "./forums/route.js";
-import { CommentsRouter } from "./comments/route.js";
-import { RepliesRouter } from "./replies/route.js";
 import { AnswersRouter } from "./answers/route.js";
 import { FeedRouter } from "./feed/route.js";
 import { ArticlesRouter } from "./articles/route.js";
@@ -21,8 +19,6 @@ const Router = {
   NewsRouter,
   JobsRouter,
   ForumsRouter,
-  CommentsRouter,
-  RepliesRouter,
   AnswersRouter,
   FeedRouter,
   ArticlesRouter,

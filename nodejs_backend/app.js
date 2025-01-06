@@ -39,8 +39,6 @@ app.use("/posts", auth, r.PostsRouter);
 app.use("/news", auth, r.NewsRouter);
 app.use("/jobs", auth, r.JobsRouter);
 app.use("/forums", auth, r.ForumsRouter);
-app.use("/comments", auth, r.CommentsRouter);
-app.use("/replies", auth, r.RepliesRouter);
 app.use("/answers", auth, r.AnswersRouter);
 app.use("/feed", auth, r.FeedRouter);
 app.use("/articles", auth, r.ArticlesRouter);

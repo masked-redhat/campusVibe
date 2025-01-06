@@ -10,7 +10,6 @@ import { serve } from "../../utils/response.js";
 import User from "../../models/ORM/user.js";
 import transaction from "../../db/sql/transaction.js";
 import { VoteRouter } from "./forum_vote.js";
-import { AnswerRouter } from "./answer.js";
 
 const router = Router();
 
@@ -153,8 +152,6 @@ router.delete("/", async (req, res) => {
 });
 
 router.use("/vote", VoteRouter);
-
-router.use("/answer", AnswerRouter);
 
 router.all("*", (_, res) => {
   res.sendStatus(405);
