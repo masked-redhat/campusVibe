@@ -53,7 +53,7 @@ db.define(
     indexes: [
       {
         unique: true,
-        fields: ["answerId"],
+        fields: ["id", "forumId"],
         where: {
           accepted: true, // Ensures only one `true` value per `answerId`
         },
