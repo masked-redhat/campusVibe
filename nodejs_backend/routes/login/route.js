@@ -183,6 +183,15 @@ router.post("/email", async (req, res) => {
   }
 
   try {
+    let user = await User.findOne({
+      attributes: ["email_verified"],
+      where: { username },
+    });
+    if (checks.isTrue(user.email_verified)) {
+      serve(res, codes.OK, m.EMAIL_VERIFIED);
+      return;
+    }
+
     let email = await EmailTokens.findOne({ username, otp });
 
     if (checks.isNuldefined(email)) {
@@ -200,7 +209,7 @@ router.post("/email", async (req, res) => {
       return;
     }
 
-    let user = await User.update(
+    user = await User.update(
       { email_verified: true },
       { where: { username: email.username } }
     );
