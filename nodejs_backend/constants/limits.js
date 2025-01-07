@@ -22,6 +22,7 @@ const limits = {
   FEEDBACK: {
     _: 30,
   },
+  NEWS: 40,
 };
 
 export default limits;

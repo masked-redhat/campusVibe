@@ -5,10 +5,11 @@ import News from "../../models/ODM/news.js";
 import checks from "../../utils/checks.js";
 import { Error } from "mongoose";
 import { ADMIN } from "../../constants/env.js";
+import limits from "../../constants/limits.js";
+
+const LIMIT = limits.NEWS;
 
 const router = Router();
-
-const LIMIT = 20;
 
 router.get("/", async (req, res) => {
   // get offset and newsId from request query
