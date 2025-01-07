@@ -8,6 +8,7 @@ import cookieParser from "cookie-parser";
 import authorization from "./middlewares/auth.js";
 import { syncDB } from "./sync/syncing.js";
 import upload from "./middlewares/parser.js";
+import rateLimiter from "./constants/rate.js";
 const r = Routes,
   auth = authorization.validateUser;
 
@@ -31,7 +32,7 @@ app.use(cookieParser());
 app.use(upload.any());
 
 // Routes
-app.use("/login", r.LoginRouter);
+app.use("/login", rateLimiter.login, r.LoginRouter);
 app.use("/logout", auth, r.LogoutRouter);
 app.use("/posts", auth, r.PostsRouter);
 app.use("/friends", auth, r.FriendRouter);
