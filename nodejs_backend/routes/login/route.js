@@ -1,32 +1,24 @@
 import { Router } from "express";
-import pass from "../../utils/password.js";
-import usernameValidator from "../../utils/username.js";
+import Password from "../../utils/password.js";
 import codes from "../../utils/codes.js";
-import { serve } from "../../utils/response.js";
 import User from "../../models/ORM/user.js";
 import checks from "../../utils/checks.js";
 import { MESSAGES as m } from "../../constants/messages/login.js";
-import MESSAGES from "../../constants/messages/global.js";
-import emailValidator from "deep-email-validator";
-import emailVerifier from "../../utils/email.js";
+import Email from "../../utils/email.js";
 import EmailTokens from "../../models/ODM/email_verification_tokens.js";
 import authorization from "../../middlewares/auth.js";
 import { getUserData } from "../../db/commands/userdata.js";
 import transaction from "../../db/sql/transaction.js";
-import Profile from "../../models/ORM/profile.js";
+import Username from "../../utils/username.js";
+import { Op } from "sequelize";
 
 const router = Router();
 
 router.post("/", async (req, res) => {
   const { username, password } = req.body;
 
-  // check if content are not null
-  {
-    if (checks.isNuldefined(username) || checks.isNuldefined(password)) {
-      serve(res, codes.BAD_REQUEST, m.NO_CONTENT);
-      return;
-    }
-  }
+  // check if parameters are null
+  if (checks.isAnyValueNull([username, password])) return res.noParams();
 
   try {
     const user = await User.findOne({
@@ -34,33 +26,32 @@ router.post("/", async (req, res) => {
       where: { username },
     });
 
-    if (checks.isNuldefined(user)) {
-      serve(res, codes.BAD_REQUEST, m.USER_NOT_FOUND);
-      return;
-    }
-    if (pass.compare(password, user.password) === false) {
-      serve(res, codes.UNAUTHORIZED, m.BAD_PASSWORD);
-      return;
-    }
-    if (user.email_verified === false) {
-      serve(res, codes.BAD_REQUEST, m.EMAIL_UNVERIFIED);
-      return;
-    }
-    if (user.blacklisted === true) {
-      serve(res, codes.FORBIDDEN, m.BLACKLISTED);
-      return;
-    }
+    // if no user associated with that username
+    if (checks.isNuldefined(user))
+      return res.failure(codes.BAD_REQUEST, m.USERNAME_INVALID);
 
+    // if password don't match
+    if (Password.compare(password, user.password) === false)
+      return res.failure(codes.UNAUTHORIZED, m.PASSWORD_WRONG);
+
+    // if email is not verified
+    if (!checks.isTrue(user.email_verified))
+      return res.failure(codes.UNAUTHORIZED, m.EMAIL_UNVERIFIED);
+
+    // if user is blacklisted
+    if (user.blacklisted === true)
+      return res.failure(codes.FORBIDDEN, m.BLACKLISTED);
+
+    // get the user data
     const userData = await getUserData(username);
 
     const token = await authorization.setupAuth(userData, res);
 
-    if (!checks.isNuldefined(token))
-      serve(res, codes.OK, m.LOGGED_IN, { token });
+    if (!checks.isNuldefined(token)) res.ok(m.LOGGED_IN, { token });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
@@ -68,111 +59,73 @@ router.post("/new", async (req, res) => {
   const { username, password, email } = req.body;
 
   // check if content are not null
-  {
-    if (
-      checks.isNuldefined(username) ||
-      checks.isNuldefined(password) ||
-      checks.isNuldefined(email)
-    ) {
-      serve(res, codes.BAD_REQUEST, m.NO_CONTENT);
-      return;
-    }
-  }
+  if (checks.isAnyValueNull([username, password, email])) return res.noParams();
 
   // check if email is valid
-  {
-    const goodEmail = await emailValidator.validate(email);
-    if (goodEmail.valid === false) {
-      serve(res, codes.BAD_REQUEST, m.EMAIL_INVALID);
-      return;
-    }
-  }
+  const validEmail = await Email.validate(email)?.valid;
+  if (!checks.isTrue(validEmail))
+    return res.failure(codes.BAD_REQUEST, m.EMAIL_INVALID);
 
   // check if username and password in good format
   {
-    const goodUsername = usernameValidator.validate(username);
-    if (goodUsername[0] === false) {
-      serve(res, codes.BAD_REQUEST, JSON.stringify(goodUsername[1]));
-      return;
-    }
+    const checkUsername = Username.validate(username);
+    if (!checks.isTrue(checkUsername.valid))
+      return res.failure(codes.BAD_REQUEST, checkUsername.message);
 
-    const goodPassword = pass.validate(password);
-    if (goodPassword[0] === false) {
-      serve(res, codes.BAD_REQUEST, JSON.stringify(goodPassword[1]));
-      return;
-    }
+    const checkPassword = Password.validate(password);
+    if (!checks.isTrue(checkPassword.valid))
+      return res.failure(codes.BAD_REQUEST, checkPassword.message);
   }
 
-  // check if a user with same username already exists
-  {
-    try {
-      const user = await User.findOne({ where: { username } });
-      if (!checks.isNuldefined(user)) {
-        serve(res, codes.CONFLICT, m.USERNAME_CONFLICT);
-        return;
-      }
-    } catch (err) {}
-  }
-
-  // check if a user with same email already exists
-  {
-    try {
-      const user = await User.findOne({ where: { email } });
-      if (!checks.isNuldefined(user)) {
-        serve(res, codes.CONFLICT, m.EMAIL_CONFLICT);
-        return;
-      }
-    } catch (err) {}
+  // check if a user with same username or email already exists
+  try {
+    const user = await User.findOne({
+      where: { [Op.or]: [{ username }, { email }] },
+    });
+    if (!checks.isNuldefined(user))
+      return res.failure(
+        codes.CONFLICT,
+        user.email === email ? m.EMAIL_CONFLICT : m.USERNAME_CONFLICT
+      );
+  } catch (err) {
+    return res.serverError();
   }
 
   // hash the password
-  const hashed = pass.hash(password);
+  const hashed = Password.hash(password);
 
-  // create new user with these credentials
-  const userData = {
-    username,
-    password: hashed,
-    email,
-  };
-  const userObj = User.build(userData);
+  // create new user with given credentials
+  const userObj = User.build({ username, password: hashed, email });
 
-  // create the verification email token
-  const emailOtp = emailVerifier.generateOtp();
-  const emailObj = new EmailTokens({ username, otp: emailOtp });
+  // generate otp and email obj
+  const otp = Email.generateOtp();
+  const emailTokenObj = new EmailTokens({ username, otp });
 
-  // save the email and the user and give response
-  {
-    let user, email;
-    const t = await transaction();
-    try {
-      user = await userObj.save({ transaction: t });
-      await Profile.create({ userId: user.id }, { transaction: t });
-      email = await emailObj.save();
+  let emailToken;
+  const t = await transaction();
+  try {
+    // save user and email
+    await userObj.save({ transaction: t });
+    emailToken = await emailTokenObj.save();
 
-      await emailVerifier.verify(
-        user.email,
-        "CampusVibe Application Email Verification",
-        `OTP : ${emailOtp}`
-      );
+    await Email.sendOtp(email, otp);
 
-      await t.commit();
-      serve(res, codes.CREATED, m.CREATED);
-    } catch (err) {
-      console.log(err);
-      await t.rollback();
+    await t.commit();
 
-      try {
-        await EmailTokens.deleteOne(email);
-        await user.destroy();
-      } catch {}
+    res.ok(m.CREATED);
+  } catch (err) {
+    console.log(err);
+    await t.rollback();
 
-      serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-    }
+    // delete the created token silently
+    EmailTokens.deleteOne(emailToken);
+
+    res.serverError();
   }
 });
 
 router.all("*", (_, res) => {
-  res.sendStatus(405);
+  res.noMethod();
 });
 
 export const LoginRouter = router;
