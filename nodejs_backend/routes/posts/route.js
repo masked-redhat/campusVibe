@@ -12,7 +12,6 @@ import {
   userInfoInclusion,
 } from "../../db/sql/commands.js";
 import transaction from "../../db/sql/transaction.js";
-import User from "../../models/ORM/user.js";
 
 const LIMIT = limits.POST._;
 
