@@ -33,6 +33,7 @@ app.use(upload.any());
 
 // Routes
 app.use("/login", rateLimiter.login, r.LoginRouter);
+app.use("/email", r.EmailRouter);
 app.use("/logout", auth, r.LogoutRouter);
 app.use("/posts", auth, r.PostsRouter);
 app.use("/friends", auth, r.FriendRouter);

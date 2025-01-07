@@ -4,7 +4,7 @@ export const MESSAGES = {
   EMAIL_INVALID: "Email is invalid",
   EMAIL_CONFLICT: "User with same email already exists",
   CREATED:
-    "User has been created, please verify your email to use the application, if no email has been send, try to go to /email/resend",
+    "User has been created, email verification otp has been sent, if no email has been recieved, try to go to /email/resend",
   TOKEN_INVALID:
     "Email token invalid to verify, try requesting another with /email/resend",
   USER_NOT_FOUND: "No user found with that username",

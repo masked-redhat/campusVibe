@@ -10,10 +10,12 @@ import { ArticlesRouter } from "./articles/route.js";
 import { ProfileRouter } from "./profile/route.js";
 import { FeedbackRouter } from "./feedback/route.js";
 import { FriendRouter } from "./friends/route.js";
+import { EmailRouter } from "./email/route.js";
 
 const Router = {
   LoginRouter,
   LogoutRouter,
+  EmailRouter,
   PostsRouter,
   FriendRouter,
   NewsRouter,
