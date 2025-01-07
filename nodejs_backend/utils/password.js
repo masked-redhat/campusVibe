@@ -12,41 +12,44 @@ const compare = (pass, hashed) => {
 };
 
 const validate = (password) => {
+  const result = { valid: false, message: "Password is Valid!" };
   const strongPasswordRegex =
     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/;
 
   const isStrong = strongPasswordRegex.test(password);
 
-  if (isStrong) return [true, []];
+  if (isStrong) result.valid = true;
+  else {
+    // Detailed feedback for missing criteria
+    const feedback = [];
 
-  // Detailed feedback for missing criteria
-  const feedback = [];
+    if (password.length < 8) {
+      feedback.push("Password must be at least 8 characters long.");
+    }
+    if (!/[a-z]/.test(password)) {
+      feedback.push("Password must include at least one lowercase letter.");
+    }
+    if (!/[A-Z]/.test(password)) {
+      feedback.push("Password must include at least one uppercase letter.");
+    }
+    if (!/\d/.test(password)) {
+      feedback.push("Password must include at least one digit.");
+    }
+    if (!/[@$!%*?&#]/.test(password)) {
+      feedback.push(
+        "Password must include at least one special character (e.g., @$!%*?&#)."
+      );
+    }
+    result.message = JSON.stringify(feedback);
+  }
 
-  if (password.length < 8) {
-    feedback.push("Password must be at least 8 characters long.");
-  }
-  if (!/[a-z]/.test(password)) {
-    feedback.push("Password must include at least one lowercase letter.");
-  }
-  if (!/[A-Z]/.test(password)) {
-    feedback.push("Password must include at least one uppercase letter.");
-  }
-  if (!/\d/.test(password)) {
-    feedback.push("Password must include at least one digit.");
-  }
-  if (!/[@$!%*?&#]/.test(password)) {
-    feedback.push(
-      "Password must include at least one special character (e.g., @$!%*?&#)."
-    );
-  }
-
-  return [feedback.length === 0, feedback];
+  return result;
 };
 
-const pass = {
+const Password = {
   hash,
   compare,
   validate,
 };
 
-export default pass;
+export default Password;

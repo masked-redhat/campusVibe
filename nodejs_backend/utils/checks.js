@@ -6,6 +6,13 @@ const isNuldefined = (entity) => {
   return entity === undefined || entity === null || entity === NaN;
 };
 
+const areValuesNull = (values = []) => {
+  for (const val of values) {
+    if (isNuldefined(val)) return true;
+  }
+  return false;
+};
+
 const isTrue = (entity) => {
   return String(entity).trim() === "true";
 };
@@ -30,6 +37,7 @@ const getObjLen = (obj) => {
 const checks = {
   isNuldefined,
   isTrue,
+  isAnyValueNull: areValuesNull,
 };
 
 export default checks;

@@ -1,6 +1,8 @@
 import nodemailer from "nodemailer";
 import { NODEMAILER } from "../constants/env.js";
 import google from "googleapis";
+import OTPVERIFICATION from "../constants/email.js";
+import emailValidator from "deep-email-validator";
 
 const OAuth2 = google.Auth.OAuth2Client;
 
@@ -39,16 +41,12 @@ const createTransporter = async () => {
   return transporter;
 };
 
-const sendVerificationEmail = async (
-  recipient,
-  subject = "Verify Email",
-  text = ""
-) => {
+const sendOtpEmail = async (recipient, otp) => {
   const mailOptions = {
     from: NODEMAILER.EMAIL,
     to: recipient,
-    subject: subject,
-    text,
+    subject: OTPVERIFICATION.SUBJECT,
+    text: OTPVERIFICATION.TEXT(otp),
   };
 
   const transporter = await createTransporter();
@@ -62,15 +60,17 @@ const sendVerificationEmail = async (
   });
 };
 
-const createToken = () => {
+// TODO: modify this function to work properly
+const generateOtp = () => {
   return Math.floor(Math.random() * 1000000)
     .toString()
     .padStart(6, "0");
 };
 
-const emailVerifier = {
-  verify: sendVerificationEmail,
-  generateOtp: createToken,
+const Email = {
+  sendOtp: sendOtpEmail,
+  generateOtp,
+  validate: emailValidator.validate,
 };
 
-export default emailVerifier;
+export default Email;
