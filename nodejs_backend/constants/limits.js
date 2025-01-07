@@ -19,6 +19,9 @@ const limits = {
       COMMENT: 30,
     },
   },
+  FEEDBACK: {
+    _: 30,
+  },
 };
 
 export default limits;
