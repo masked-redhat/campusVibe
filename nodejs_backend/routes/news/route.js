@@ -20,7 +20,7 @@ router.get("/", async (req, res) => {
     // get all news if no specific newsId is given
     const news = checks.isNuldefined(newsId)
       ? await News.find().skip(offset).limit(LIMIT)
-      : await News.find({ _id: newsId }).skip(offset).limit(LIMIT);
+      : await News.find({ _id: newsId });
 
     res.ok(m.FOUND, { news });
   } catch (err) {
