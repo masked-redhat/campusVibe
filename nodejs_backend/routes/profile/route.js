@@ -1,31 +1,30 @@
 import { Router } from "express";
 import codes from "../../utils/codes.js";
-import MESSAGES from "../../constants/messages/global.js";
-// import { MESSAGES as m } from "../../constants/messages/posts.js";
-import { serve } from "../../utils/response.js";
+import { MESSAGES as m } from "../../constants/messages/profile.js";
 import checks from "../../utils/checks.js";
 import Profile from "../../models/ORM/profile.js";
-import IMAGES from "../../constants/images.js";
 import User from "../../models/ORM/user.js";
+import { ValidationError } from "sequelize";
 
 const router = Router();
 
 router.get("/", async (req, res) => {
-  const pid = req.user.profileId;
+  // get username (optional), if wanting another user's profile
   const { username } = req.query;
 
   try {
-    const userId = username
-      ? (
-          await User.findOne({
-            attributes: ["id"],
-            where: { username },
-          })
-        )?.id
-      : req.user.id;
+    // get userId if username given
+    const userId =
+      username && username !== req.user.username
+        ? (
+            await User.findOne({
+              attributes: ["id"],
+              where: { username },
+            })
+          )?.id
+        : req.user.id;
 
-    console.log(userId, req.user.id);
-
+    // get profile id of the user found
     const profileId =
       !checks.isNuldefined(userId) && userId != req.user.id
         ? (
@@ -35,20 +34,20 @@ router.get("/", async (req, res) => {
             })
           )?.id
         : userId === req.user.id
-        ? pid
+        ? req.user.profileId
         : null;
 
-    if (checks.isNuldefined(profileId)) {
-      serve(res, codes.BAD_REQUEST, "No user with that username");
-      return;
-    }
+    // if no profile Id
+    if (checks.isNuldefined(profileId))
+      return res.failure(codes.BAD_REQUEST, m.USERNAME_INVALID);
 
+    // find profile of the user
     const profile = await Profile.findOne({
       attributes: { exclude: ["id", "userId"] },
       where: { id: profileId },
     });
 
-    serve(res, codes.OK, "User profile", {
+    res.ok(m.SUCCESS, {
       profile: {
         ...profile.dataValues,
         username: username ? username : req.user.username,
@@ -57,17 +56,23 @@ router.get("/", async (req, res) => {
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-    return;
+    res.serverError();
   }
 });
 
 router.patch("/", async (req, res) => {
-  const pid = req.user.profileId;
-  const { firstName, lastName, age, instituteName, studentType, interests } =
-    req.body;
-  const profilePic = req.files?.map((val) => val.filename)?.[0] ?? null;
+  // get update parameters from request body
+  const {
+    firstName,
+    lastName,
+    age,
+    instituteName,
+    studentType,
+    interests,
+    pfp,
+  } = req.body;
 
+  // only update data that is given to be updated
   const updateData = Object.fromEntries(
     Object.entries({
       firstName,
@@ -76,44 +81,42 @@ router.patch("/", async (req, res) => {
       instituteName,
       studentType,
       interests,
-      profilePic,
+      profilePic: pfp,
     }).filter(([_, value]) => !checks.isNuldefined(value))
   );
 
   try {
     await Profile.update(updateData, {
-      where: { id: pid, userId: req.user.id },
+      where: { id: req.user.profileId, userId: req.user.id },
     });
 
-    serve(res, codes.OK, "Profile updated");
+    res.ok(m.UPDATED);
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    if (err instanceof ValidationError) return res.invalidParams();
+
+    res.serverError();
   }
 });
 
 router.put("/", async (req, res) => {
-  const pid = req.user.profileId;
+  // get update parameters from request body
   const {
-    firstName = null,
-    lastName = null,
-    age = null,
-    instituteName = null,
-    studentType = null,
-    interests = [],
+    firstName,
+    lastName,
+    age,
+    instituteName,
+    studentType,
+    interests,
+    pfp,
   } = req.body;
-  const profilePic =
-    req.files?.map((val) => val.filename)?.[0] ?? IMAGES.PROFILE;
 
-  if (!Array.isArray(interests)) {
-    serve(res, codes.BAD_REQUEST, "Invalid format of details given", {
-      interests,
-    });
-  }
+  if (checks.isAnyValueNull([firstName, instituteName, studentType]))
+    return res.noParams();
 
   try {
-    const profileUpdate = await Profile.update(
+    await Profile.update(
       {
         firstName,
         lastName,
@@ -121,23 +124,21 @@ router.put("/", async (req, res) => {
         instituteName,
         studentType,
         interests,
-        profilePic,
+        profilePic: pfp,
       },
       {
-        where: { id: pid, userId: req.user.id },
+        where: { id: req.user.profileId, userId: req.user.id },
       }
     );
 
-    serve(res, codes.OK, "Profile updated");
+    res.ok(m.UPDATED);
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-  }
-});
+    if (err instanceof ValidationError) return res.invalidParams();
 
-router.all("*", (_, res) => {
-  res.sendStatus(405);
+    res.serverError();
+  }
 });
 
 export const ProfileRouter = router;

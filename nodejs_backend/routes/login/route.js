@@ -10,7 +10,7 @@ import authorization from "../../middlewares/auth.js";
 import { getUserData } from "../../db/commands/userdata.js";
 import transaction from "../../db/sql/transaction.js";
 import Username from "../../utils/username.js";
-import { Op } from "sequelize";
+import { Op, ValidationError } from "sequelize";
 
 const router = Router();
 
@@ -116,6 +116,8 @@ router.post("/new", async (req, res) => {
   } catch (err) {
     console.log(err);
     await t.rollback();
+
+    if (err instanceof ValidationError) return res.invalidParams();
 
     // delete the created token silently
     EmailTokens.deleteOne(emailToken);

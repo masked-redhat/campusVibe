@@ -19,7 +19,14 @@ response.serverError = function () {
 };
 
 response.noParams = function () {
-  this.failure(codes.BAD_REQUEST, MESSAGES.PARAMETERS_INVALID);
+  this.failure(codes.BAD_REQUEST, MESSAGES.PARAMETERS_UNAVAILABLE);
+};
+
+response.invalidParams = function () {
+  this.failure(
+    codes.clientError.UNPROCESSABLE_ENTITY,
+    MESSAGES.PARAMETERS_INVALID
+  );
 };
 
 response.noMethod = function () {
