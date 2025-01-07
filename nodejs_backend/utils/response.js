@@ -25,3 +25,11 @@ response.noParams = function () {
 response.noMethod = function () {
   this.sendStatus(codes.METHOD_NOT_ALLOWED);
 };
+
+response.forbidden = function (message = MESSAGES.ACTION_NOT_ALLOWED) {
+  this.failure(codes.FORBIDDEN, message);
+};
+
+response.deleted = function () {
+  this.sendStatus(codes.NO_CONTENT);
+};

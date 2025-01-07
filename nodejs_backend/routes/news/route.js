@@ -1,177 +1,141 @@
 import { Router } from "express";
 import codes from "../../utils/codes.js";
 import { serve } from "../../utils/response.js";
-import MESSAGES from "../../constants/messages/global.js";
+import { MESSAGES as m } from "../../constants/messages/news.js";
 import News from "../../models/ODM/news.js";
 import checks from "../../utils/checks.js";
 import { Error } from "mongoose";
+import { ADMIN } from "../../constants/env.js";
 
 const router = Router();
 
 const LIMIT = 20;
 
 router.get("/", async (req, res) => {
+  // get offset and newsId from request query
   const { offset: rawOffset, newsId } = req.query;
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
 
   try {
+    // get all news if no specific newsId is given
     const news = checks.isNuldefined(newsId)
       ? await News.find().skip(offset).limit(LIMIT)
       : await News.find({ _id: newsId }).skip(offset).limit(LIMIT);
 
-    serve(res, codes.OK, "News", { news });
+    res.ok(m.FOUND, { news });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
 router.post("/", async (req, res) => {
   const username = req.user.username;
 
-  if (username !== "admin") {
-    serve(res, codes.FORBIDDEN, "Not allowed to post news if not admin");
-    return;
-  }
+  // if user not admin, then not allowed
+  if (!checks.isTrue(username, ADMIN)) return res.forbidden();
 
-  let { title, content } = req.body;
-  const images = req.files?.map((val) => val.filename) ?? [];
-  if (checks.isNuldefined(title)) title = null;
-  if (checks.isNuldefined(content)) {
-    serve(res, codes.BAD_REQUEST, "There has to be content in news");
-    return;
-  }
+  // get the news's title, content and images from request body
+  let { title, content, images = [] } = req.body;
+
+  if (checks.isAnyValueNull([title, content, images])) return res.noParams();
 
   try {
-    const newNews = await News.create({
-      title,
-      content,
-      images,
-    });
+    const newNews = await News.create({ title, content, images });
 
-    serve(res, codes.CREATED, "News created", { id: newNews.id });
+    res.created(m.CREATED, { id: newNews.id });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
 router.patch("/", async (req, res) => {
   const username = req.user.username;
 
-  if (username !== "admin") {
-    serve(res, codes.FORBIDDEN, "Not allowed to post news if not admin");
-    return;
-  }
+  // if user not admin, then not allowed
+  if (!checks.isTrue(username, ADMIN)) return res.forbidden();
 
-  let { title, content, newsId } = req.body;
-  const images = req.files?.map((val) => val.filename) ?? [];
+  let { title, content, images, newsId } = req.body;
 
-  if (checks.isNuldefined(newsId)) {
-    serve(res, codes.BAD_REQUEST, "News Id not given");
-    return;
-  }
+  if (checks.isNuldefined(newsId)) return res.noParams();
 
+  // whatever parameters are given, only those have to be updated
   const updateData = Object.fromEntries(
-    Object.entries({
-      title,
-      content,
-      images,
-    }).filter(([_, value]) => !checks.isNuldefined(value))
+    Object.entries({ title, content, images }).filter(
+      ([_, value]) => !checks.isNuldefined(value)
+    )
   );
 
   try {
-    const newNews = await News.updateOne({ _id: newsId }, updateData);
+    await News.updateOne({ _id: newsId }, updateData);
 
-    serve(res, codes.OK, "News updated");
+    res.ok(m.UPDATED);
   } catch (err) {
     console.log(err);
 
-    if (err instanceof Error.CastError) {
-      serve(res, codes.BAD_REQUEST, "News id in invalid format");
-      return;
-    }
+    // if id could not be cast to mongodb id
+    if (err instanceof Error.CastError)
+      return res.failure(codes.BAD_REQUEST, m.ID_INVALID);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
 router.put("/", async (req, res) => {
   const username = req.user.username;
 
-  if (username !== "admin") {
-    serve(res, codes.FORBIDDEN, "Not allowed to post news if not admin");
-    return;
-  }
+  // if user not admin, then not allowed
+  if (!checks.isTrue(username, ADMIN)) return res.forbidden();
 
-  let { title, content, newsId } = req.body;
-  const images = req.files?.map((val) => val.filename) ?? [];
+  let { title, content, images, newsId } = req.body;
 
-  if (checks.isNuldefined(newsId)) {
-    serve(res, codes.BAD_REQUEST, "News Id not given");
-    return;
-  }
-
-  if (checks.isNuldefined(title)) title = null;
-  if (checks.isNuldefined(content)) {
-    serve(res, codes.BAD_REQUEST, "There has to be content in news");
-    return;
-  }
+  // if required parameters not given
+  if (checks.isAnyValueNull([title, content, images, newsId]))
+    return res.noParams();
 
   try {
-    const newNews = await News.updateOne(
-      { _id: newsId },
-      { title, content, images }
-    );
+    await News.updateOne({ _id: newsId }, { title, content, images });
 
-    serve(res, codes.OK, "News updated");
+    res.ok(m.UPDATED);
   } catch (err) {
     console.log(err);
 
-    if (err instanceof Error.CastError) {
-      serve(res, codes.BAD_REQUEST, "News id in invalid format");
-      return;
-    }
+    if (err instanceof Error.CastError)
+      return res.failure(codes.BAD_REQUEST, m.ID_INVALID);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
 router.delete("/", async (req, res) => {
   const username = req.user.username;
 
-  if (username !== "admin") {
-    serve(res, codes.FORBIDDEN, "Not allowed to post news if not admin");
-    return;
-  }
+  if (username !== ADMIN) return res.forbidden();
 
+  // get news Id from query
   const { newsId } = req.query;
+
+  if (checks.isNuldefined(newsId)) return res.noParams();
 
   try {
     const deleted = await News.deleteOne({ _id: newsId });
 
-    if (!(deleted.acknowledged === true && deleted.deletedCount === 1)) {
-      serve(res, codes.BAD_REQUEST, "news Id given was invalid");
-      return;
-    }
+    // if not deleted, then bad request
+    if (!(deleted.acknowledged === true && deleted.deletedCount === 1))
+      return res.failure(codes.BAD_REQUEST, m.ID_INVALID);
 
-    serve(res, codes.NO_CONTENT);
+    res.deleted();
   } catch (err) {
     console.log(err);
 
-    if (err instanceof Error.CastError) {
-      serve(res, codes.BAD_REQUEST, "News id in invalid format");
-      return;
-    }
+    if (err instanceof Error.CastError)
+      return res.failure(codes.BAD_REQUEST, m.ID_INVALID);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
-});
-
-router.all("*", (_, res) => {
-  res.sendStatus(405);
 });
 
 export const NewsRouter = router;

@@ -13,8 +13,8 @@ const areValuesNull = (values = []) => {
   return false;
 };
 
-const isTrue = (entity) => {
-  return String(entity).trim() === "true";
+const isTrue = (entity, _true = "true") => {
+  return String(entity).trim() === _true;
 };
 
 const isObject = (ent) => {

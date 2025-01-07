@@ -58,6 +58,9 @@ export const NODEMAILER = {
 };
 
 export const APPURL = `http://${BACKEND.HOST}:${BACKEND.PORT}`;
+export const IMAGEURL = new URL("images", APPURL).toString();
+
+export const ADMIN = "admin";
 
 const env = {
   backend: BACKEND,
@@ -65,6 +68,7 @@ const env = {
   mongodb: MONGODB,
   nodemailer: NODEMAILER,
   url: APPURL,
+  images: IMAGEURL,
 };
 
 export default env;
