@@ -11,3 +11,4 @@ tests
 **/*.py
 **/*/public/images/*.*
 **/*/public/assets
+**/*/package-lock.*
