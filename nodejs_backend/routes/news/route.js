@@ -1,6 +1,5 @@
 import { Router } from "express";
 import codes from "../../utils/codes.js";
-import { serve } from "../../utils/response.js";
 import { MESSAGES as m } from "../../constants/messages/news.js";
 import News from "../../models/ODM/news.js";
 import checks from "../../utils/checks.js";
