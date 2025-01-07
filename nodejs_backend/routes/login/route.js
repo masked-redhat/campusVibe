@@ -124,8 +124,4 @@ router.post("/new", async (req, res) => {
   }
 });
 
-router.all("*", (_, res) => {
-  res.noMethod();
-});
-
 export const LoginRouter = router;

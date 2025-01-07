@@ -21,8 +21,4 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.all("*", (_, res) => {
-  res.noMethod();
-});
-
 export const LogoutRouter = router;
