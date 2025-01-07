@@ -56,7 +56,7 @@ const setupAuth = async (userData, res) => {
     return;
   }
 
-  token = userData.username + " " + token;
+  token = userData.username + "~" + token;
 
   // set token in cookies
   res.cookie(TOKEN._, token, {
@@ -118,7 +118,7 @@ const getUserDataFromToken = async (req, res) => {
 
   let username;
   try {
-    [username, token] = token.split(" ");
+    [username, token] = token.split("~");
   } catch (err) {
     console.log(err);
 
