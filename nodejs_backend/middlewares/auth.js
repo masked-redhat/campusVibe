@@ -27,13 +27,7 @@ const CHARS =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$%^&!@#*";
 
 const generateRandomToken = (length = 32) => {
-  let result = "";
-  for (let i = 0; i < length; i++) {
-    const randomByte = crypto.randomBytes(1); // Generate a single random byte
-    const index = randomByte[0] % CHARS.length; // Use modulo to map to the character set
-    result += CHARS[index];
-  }
-  return result;
+  return crypto.randomBytes(length).toString("base64url");
 };
 
 const setupAuth = async (userData, res) => {
