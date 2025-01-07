@@ -1,107 +1,92 @@
 import { Router } from "express";
 import Post from "../../models/ORM/post/posts.js";
 import codes from "../../utils/codes.js";
-import MESSAGES from "../../constants/messages/global.js";
 import { MESSAGES as m } from "../../constants/messages/posts.js";
-import { serve } from "../../utils/response.js";
 import checks from "../../utils/checks.js";
 import { ValidationError } from "sequelize";
 import { LikeRouter } from "./like.js";
 import { CommentRouter } from "./comment.js";
 import limits from "../../constants/limits.js";
-import { userInfoInclusion } from "../../db/sql/commands.js";
+import {
+  getUserIdFromUsername,
+  userInfoInclusion,
+} from "../../db/sql/commands.js";
 import transaction from "../../db/sql/transaction.js";
 import User from "../../models/ORM/user.js";
 
+const LIMIT = limits.POST._;
+
 const router = Router();
 
-const LIMIT = limits.POST._;
-export const simpleOrder = (field) => [[field, "desc"]];
-
 router.get("/", async (req, res) => {
+  // get the offset and username if wanted another user's posts
   const { offset: rawOffset, username } = req.query;
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
 
   try {
-    const userId = username
-      ? (
-          await User.findOne({
-            attributes: ["id"],
-            where: { username },
-          })
-        )?.id
-      : req.user.id;
+    // get userId for the username
+    const userId =
+      username && username !== req.user.username
+        ? getUserIdFromUsername(username)
+        : req.user.id;
 
+    // find and sort the posts
     const posts = await Post.findAll({
       attributes: { exclude: ["userId"] },
       where: { userId },
       offset,
       limit: LIMIT,
-      order: simpleOrder("createdAt"),
-      include: [userInfoInclusion],
+      order: [["createdAt", "desc"]],
+      ...userInfoInclusion,
     });
 
-    serve(res, codes.OK, m.POSTS_FOUND, {
-      posts,
-      offsetNext: posts.length + offset,
-    });
-    return;
+    res.ok(m.SUCCESS, { posts, offsetNext: posts.length + offset });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-    return;
+    if (err instanceof ValidationError) return res.invalidParams();
+
+    res.serverError();
   }
 });
 
 router.post("/", async (req, res) => {
-  const { title, content, reposts } = req.body;
-  const images = req.files?.map((val) => val.filename) ?? [];
+  // get the post parameters from request body
+  const { title = null, content = null, reposts = [], images = [] } = req.body;
 
-  let post;
+  if (checks.isNuldefined(title)) return res.noParams();
+
   const t = await transaction();
   try {
-    post = await Post.create(
-      {
-        userId: req.user.id,
-        title: title ?? null,
-        content: content ?? null,
-        images: images ?? [],
-        reposts: reposts ?? [],
-      },
+    const post = await Post.create(
+      { userId: req.user.id, title, content, images, reposts },
       { transaction: t }
     );
 
     await t.commit();
+
+    res.created(m.CREATED, { postId: post.id });
   } catch (err) {
     console.log(err);
     await t.rollback();
 
-    if (err instanceof ValidationError) {
-      serve(res, codes.BAD_REQUEST, m.INVALID_VALUES);
-      return;
-    }
+    if (err instanceof ValidationError) return res.invalidParams();
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-    return;
+    res.serverError();
   }
-
-  serve(res, codes.CREATED, m.CREATED, { postId: post.id });
 });
 
-router.use("/like", LikeRouter);
-
 router.patch("/", async (req, res) => {
-  const { title, content, reposts, postId } = req.body;
-  const images = req.files?.map((val) => val.filename) ?? [];
+  // get the to be update data and post id for updation
+  const { title = null, content, reposts, postId, images = [] } = req.body;
 
+  if (checks.isNuldefined(postId)) return res.noParams();
+
+  // only update data that is given
   const updateData = Object.fromEntries(
-    Object.entries({
-      title,
-      content,
-      images,
-      reposts,
-    }).filter(([_, value]) => !checks.isNuldefined(value))
+    Object.entries({ title, content, images, reposts }).filter(
+      ([_, value]) => !checks.isNuldefined(value)
+    )
   );
 
   try {
@@ -109,24 +94,25 @@ router.patch("/", async (req, res) => {
       where: { id: postId, userId: req.user.id },
     });
 
-    if (post === 0) {
-      serve(res, codes.BAD_REQUEST, m.ID_WRONG_NO_ACCESS);
-      return;
-    }
+    if (post === 0) return res.failure(codes.BAD_REQUEST, m.ID_WRONG_NO_ACCESS);
+
+    res.ok(m.POST_UPDATED);
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-    return;
-  }
+    if (err instanceof ValidationError) return res.invalidParams();
 
-  serve(res, codes.OK, m.POST_UPDATED);
+    res.serverError();
+  }
 });
 
 router.put("/", async (req, res) => {
-  const { title, content, reposts, postId } = req.body;
-  const images = req.files?.map((val) => val.filename) ?? [];
+  // get the to be update data and post id for updation
+  const { title = null, content, reposts, postId, images = [] } = req.body;
 
+  if (checks.isAnyValueNull([title, postId])) return res.noParams();
+
+  // update all data
   const updateData = { title, content, images, reposts };
 
   try {
@@ -134,27 +120,23 @@ router.put("/", async (req, res) => {
       where: { id: postId, userId: req.user.id },
     });
 
-    if (post === 0) {
-      serve(res, codes.BAD_REQUEST, m.ID_WRONG_NO_ACCESS);
-      return;
-    }
+    if (post === 0) return res.failure(codes.BAD_REQUEST, m.ID_WRONG_NO_ACCESS);
+
+    res.ok(m.POST_UPDATED);
   } catch (err) {
     console.log(err);
 
-    if (err instanceof ValidationError) {
-      serve(res, codes.BAD_REQUEST, m.INVALID_VALUES);
-      return;
-    }
+    if (err instanceof ValidationError) return res.invalidParams();
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-    return;
+    res.serverError();
   }
-
-  serve(res, codes.OK, m.POST_UPDATED);
 });
 
 router.delete("/", async (req, res) => {
+  // get post id to be deleted from the request query
   const { postId } = req.query;
+
+  if (checks.isNuldefined(postId)) return res.noParams();
 
   const t = await transaction();
   try {
@@ -166,25 +148,21 @@ router.delete("/", async (req, res) => {
 
     await t.commit();
 
-    if (post === 0) {
-      serve(res, codes.BAD_REQUEST, m.ID_WRONG_NO_ACCESS);
-      return;
-    }
+    if (post === 0) return res.failure(codes.BAD_REQUEST, m.ID_WRONG_NO_ACCESS);
+
+    res.deleted();
   } catch (err) {
     console.log(err);
     await t.rollback();
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-    return;
-  }
+    if (err instanceof ValidationError) return res.invalidParams();
 
-  serve(res, codes.NO_CONTENT);
+    res.serverError();
+  }
 });
+
+router.use("/like", LikeRouter);
 
 router.use("/comment", CommentRouter);
-
-router.all("*", (_, res) => {
-  res.sendStatus(405);
-});
 
 export const PostsRouter = router;
