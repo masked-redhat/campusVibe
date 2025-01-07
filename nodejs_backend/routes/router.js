@@ -11,6 +11,7 @@ import { ProfileRouter } from "./profile/route.js";
 import { FeedbackRouter } from "./feedback/route.js";
 import { FriendRouter } from "./friends/route.js";
 import { EmailRouter } from "./email/route.js";
+import { UploadRouter } from "./upload/route.js";
 
 const Router = {
   LoginRouter,
@@ -26,6 +27,7 @@ const Router = {
   ArticlesRouter,
   ProfileRouter,
   FeedbackRouter,
+  UploadRouter,
 };
 
 export default Router;
