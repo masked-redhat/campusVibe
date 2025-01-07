@@ -56,6 +56,8 @@ const setupAuth = async (userData, res) => {
     return;
   }
 
+  token = userData.username + " " + token;
+
   // set token in cookies
   res.cookie(TOKEN._, token, {
     httpOnly: COOKIE.HTTPONLY,
@@ -114,6 +116,16 @@ const getUserDataFromToken = async (req, res) => {
     return;
   }
 
+  let username;
+  try {
+    [username, token] = token.split(" ");
+  } catch (err) {
+    console.log(err);
+
+    serve(res, codes.FORBIDDEN, m.TOKEN_INVALID);
+    return;
+  }
+
   req.token = token;
 
   try {
@@ -136,6 +148,11 @@ const getUserDataFromToken = async (req, res) => {
 
     if (checks.isNuldefined(userData)) {
       serve(res, codes.BAD_REQUEST, m.NO_USERDATA);
+      return;
+    }
+
+    if (username !== userData.username) {
+      serve(res, codes.BAD_REQUEST, m.TOKEN_INVALID);
       return;
     }
 
