@@ -94,4 +94,9 @@ AnswerComment.belongsTo(User, { foreignKey });
 User.hasMany(AnswerCommentVote, { foreignKey, onDelete: "CASCADE" });
 AnswerCommentVote.belongsTo(User, { foreignKey });
 
+User.afterCreate(async (user, options) => {
+  const transaction = options.transaction;
+  await Profile.create({ userId: user.id }, { transaction });
+});
+
 export default User;
