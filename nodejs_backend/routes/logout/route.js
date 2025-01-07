@@ -1,26 +1,28 @@
 import { Router } from "express";
 import Tokens from "../../models/ODM/tokens.js";
-import codes from "../../utils/codes.js";
-import { serve } from "../../utils/response.js";
-import MESSAGES from "../../constants/messages/global.js";
+import { MESSAGES as m } from "../../constants/messages/logout.js";
+import checks from "../../utils/checks.js";
 
 const router = Router();
 
 router.get("/", async (req, res) => {
   const token = req.token;
+
+  if (checks.isAnyValueNull([token])) return res.noParams();
+
   try {
     await Tokens.deleteOne({ token });
 
-    serve(res, codes.OK, "Logged out successfully");
+    res.ok(m.SUCCESS);
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
 router.all("*", (_, res) => {
-  res.sendStatus(405);
+  res.noMethod();
 });
 
 export const LogoutRouter = router;
