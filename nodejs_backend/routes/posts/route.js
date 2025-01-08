@@ -37,20 +37,8 @@ router.get("/", async (req, res) => {
       offset,
       limit: LIMIT,
       order: [["createdAt", "desc"]],
-      include: [
-        userInfoInclusion.include,
-        [
-          sequelize.literal(`(
-            SELECT EXISTS (
-              SELECT 1
-              FROM "PostLikes" AS "PostLike"
-              WHERE "PostLike"."postId" = "Post"."id"
-                AND "PostLike"."userId" = ${userId}
-            )
-          )`),
-          "liked",
-        ],
-      ],
+      // TODO: add a field if liked by user
+      ...userInfoInclusion,
     });
 
     res.ok(m.SUCCESS, { posts, offsetNext: posts.length + offset });
