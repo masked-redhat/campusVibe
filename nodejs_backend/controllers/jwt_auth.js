@@ -1,7 +1,5 @@
 import jwt from "jsonwebtoken";
-import codes from "../utils/codes.js";
 import { TOKEN } from "../constants/auth.js";
-import { MESSAGES as message } from "../constants/messages/jwt_auth.js";
 
 const JWT_SECRET_KEY = TOKEN.SECRET;
 
@@ -50,9 +48,7 @@ class JwtTokenizer {
 
 class JwtValidator {
   #verified = false;
-  #statusCode = 500;
   #entity = null;
-  #message = "";
 
   constructor(token, verifyFn) {
     this.verifyEntity = verifyFn ?? ((entity) => true);
@@ -62,34 +58,20 @@ class JwtValidator {
   validate = async () => {
     let token = this.token;
 
-    if (token === null) {
-      this.#statusCode = codes.clientError.BAD_REQUEST;
-      this.#message = message.NO_TOKEN;
-      return;
-    }
+    if (token === null) return;
 
     try {
       this.#entity = jwt.verify(token, JWT_SECRET_KEY);
 
       this.#verified = (await this.verifyEntity(this.#entity)) === true;
-
-      this.#statusCode = this.#verified ? codes.OK : codes.FORBIDDEN;
-      this.#message = this.#verified ? message.OK : message.VERIFICATION_FAILED;
     } catch (err) {
-      this.#statusCode = codes.FORBIDDEN;
-      this.#message = message.TOKEN_INVALID;
-
       console.log(err);
     }
   };
 
-  getStatusCode = () => this.#statusCode;
-
   getVerificationStatus = () => this.#verified;
 
   getEntityInfo = () => this.#entity;
-
-  getMessage = () => this.#message;
 }
 
 export const JwtAuth = { JwtTokenizer, JwtValidator };
