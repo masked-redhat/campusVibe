@@ -7,7 +7,7 @@ import { Op, ValidationError } from "sequelize";
 import limits from "../../constants/limits.js";
 import {
   getUserIdFromUsername,
-  userInfoByAlias,
+  userInfoInclusionByAlias,
 } from "../../db/sql/commands.js";
 import transaction from "../../db/sql/transaction.js";
 
@@ -52,8 +52,8 @@ router.get("/", async (req, res) => {
       limit: LIMIT,
       order: [["updatedAt", "desc"]],
       include: [
-        userInfoByAlias(alias.userId, "userId").include,
-        userInfoByAlias(alias.friendId, "friendId").include,
+        userInfoInclusionByAlias(alias.userId, "userId").include,
+        userInfoInclusionByAlias(alias.friendId, "friendId").include,
       ],
     });
 
@@ -86,8 +86,8 @@ router.get("/all", async (req, res) => {
       limit: LIMIT,
       order: [["updatedAt", "desc"]],
       include: [
-        userInfoByAlias(alias.userId, "userId").include,
-        userInfoByAlias(alias.friendId, "friendId").include,
+        userInfoInclusionByAlias(alias.userId, "userId").include,
+        userInfoInclusionByAlias(alias.friendId, "friendId").include,
       ],
     });
 

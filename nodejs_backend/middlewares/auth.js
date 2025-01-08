@@ -7,10 +7,8 @@ import checks from "../utils/checks.js";
 import { COOKIE } from "../constants/auth.js";
 import User from "../models/ORM/user.js";
 import Tokens from "../models/ODM/tokens.js";
-import { serve } from "../utils/response.js";
 import codes from "../utils/codes.js";
 import { MESSAGES as m } from "../constants/messages/auth.js";
-import MESSAGES from "../constants/messages/global.js";
 import crypto from "crypto";
 import { getUserData } from "../db/commands/userdata.js";
 
