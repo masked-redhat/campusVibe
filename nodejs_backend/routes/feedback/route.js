@@ -1,22 +1,26 @@
 import { Router } from "express";
-import codes from "../../utils/codes.js";
-import MESSAGES from "../../constants/messages/global.js";
-import { serve } from "../../utils/response.js";
+import { MESSAGES as m } from "../../constants/messages/feedback.js";
 import checks from "../../utils/checks.js";
 import Feedbacks, { STATUS } from "../../models/ODM/feedback.js";
 import limits from "../../constants/limits.js";
-
-const router = Router();
+import { ADMIN } from "../../constants/env.js";
+import { Error } from "mongoose";
 
 const LIMIT = limits.FEEDBACK._;
 
+const router = Router();
+
 router.get("/", async (req, res) => {
   const username = req.user.username;
+
+  // get/set offset from the request query
   const { offset: rawOffset } = req.query;
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
 
+  // set filter for searching from the database
   let filter = {};
-  if (username === "admin") filter = { status: { $ne: STATUS.RESOLVED } };
+  // if user is admin
+  if (username === ADMIN) filter = { status: { $ne: STATUS.RESOLVED } };
   else filter = { userId: req.user.id };
 
   try {
@@ -25,59 +29,56 @@ router.get("/", async (req, res) => {
       .sort([["updatedAt", "desc"]])
       .select("-userId -__v");
 
-    serve(res, codes.OK, "Feedbacks", {
-      feedbacks,
-      offsetNext: offset + feedbacks.length,
+    // change _id to id
+    feedbacks.map((feedback) => {
+      feedback.id = feedback._id;
+      delete feedback._id;
     });
+
+    res.ok(m.SUCCESS, { feedbacks, offsetNext: offset + feedbacks.length });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
 router.post("/", async (req, res) => {
-  const uid = req.user.id;
-  const { content = null, otherDetails = null } = req.body;
-  const images = req.files?.map((val) => val.filename) ?? [];
+  // set userId for further operations
+  const userId = req.user.id;
 
-  if (checks.isNuldefined(content) && checks.isNuldefined(otherDetails)) {
-    serve(
-      res,
-      codes.BAD_REQUEST,
-      "Please add description or details for your feedback or report"
-    );
-    return;
-  }
+  const { content = null, otherDetails = null, images = [] } = req.body;
+
+  // content and otherDetails is required
+  if (checks.isAnyValueNull([content, otherDetails])) return res.noParams();
 
   try {
     const feedback = await Feedbacks.create({
-      userId: uid,
+      userId,
       content,
       otherDetails,
       images,
     });
 
-    serve(res, codes.CREATED, "Feedback sent");
+    res.created(m.SENT, { feedbackId: feedback._id });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    if (err instanceof Error.ValidationError) return res.invalidParams();
+
+    res.serverError();
   }
 });
 
 router.patch("/resolving", async (req, res) => {
+  // get feedbackId from request body
   const { feedbackId } = req.body;
 
-  if (req.user.username !== "admin") {
-    serve(res, codes.BAD_REQUEST, "Only admins are allowed");
-    return;
-  }
+  // if user is not admin
+  if (req.user.username !== ADMIN) return res.forbidden();
 
-  if (checks.isNuldefined(feedbackId)) {
-    serve(res, codes.BAD_REQUEST, "No feedback Id given in request");
-    return;
-  }
+  // feedbackId is required
+  if (checks.isNuldefined(feedbackId)) return res.noParams();
 
   try {
     await Feedbacks.updateOne(
@@ -87,30 +88,25 @@ router.patch("/resolving", async (req, res) => {
         adminMessage: "We are currently looking in your request",
       }
     );
-    serve(res, codes.OK, "Set status to resolving");
+    res.ok(m.TO.RESOLVING);
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    if (err instanceof Error.ValidationError) return res.invalidParams();
+
+    res.serverError();
   }
 });
 
 router.patch("/resolved", async (req, res) => {
-  const { feedbackId, message } = req.body;
+  // get feedbackId from request body
+  const { feedbackId, message = null } = req.body;
 
-  if (req.user.username !== "admin") {
-    serve(res, codes.BAD_REQUEST, "Only admins are allowed");
-    return;
-  }
+  // if user is not admin
+  if (req.user.username !== ADMIN) return res.forbidden();
 
-  if (checks.isNuldefined(feedbackId) || checks.isNuldefined(message)) {
-    serve(
-      res,
-      codes.BAD_REQUEST,
-      "Please give all the appropriate parameters with request"
-    );
-    return;
-  }
+  // feedbackId and message are required
+  if (checks.isAnyValueNull([feedbackId, message])) return res.noParams();
 
   try {
     await Feedbacks.updateOne(
@@ -120,30 +116,26 @@ router.patch("/resolved", async (req, res) => {
         adminMessage: message,
       }
     );
-    serve(res, codes.OK, "Feedback resolved");
+
+    res.ok(m.TO.RESOLVED);
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    if (err instanceof Error.ValidationError) return res.invalidParams();
+
+    res.serverError();
   }
 });
 
 router.patch("/rejected", async (req, res) => {
-  const { feedbackId, message } = req.body;
+  // get feedbackId from request body
+  const { feedbackId, message = null } = req.body;
 
-  if (req.user.username !== "admin") {
-    serve(res, codes.BAD_REQUEST, "Only admins are allowed");
-    return;
-  }
+  // if user is not admin
+  if (req.user.username !== ADMIN) return res.forbidden();
 
-  if (checks.isNuldefined(feedbackId) || checks.isNuldefined(message)) {
-    serve(
-      res,
-      codes.BAD_REQUEST,
-      "Please give all the appropriate parameters with request"
-    );
-    return;
-  }
+  // feedbackId and message are required
+  if (checks.isAnyValueNull([feedbackId, message])) return res.noParams();
 
   try {
     await Feedbacks.updateOne(
@@ -153,16 +145,15 @@ router.patch("/rejected", async (req, res) => {
         adminMessage: message,
       }
     );
-    serve(res, codes.OK, "Feedback rejected");
+
+    res.ok(m.TO.REJECTED);
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-  }
-});
+    if (err instanceof Error.ValidationError) return res.invalidParams();
 
-router.all("*", (_, res) => {
-  res.sendStatus(405);
+    res.serverError();
+  }
 });
 
 export const FeedbackRouter = router;
