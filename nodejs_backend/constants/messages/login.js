@@ -8,4 +8,5 @@ export const MESSAGES = {
   EMAIL_CONFLICT: "This email is already used for different account",
   CREATED:
     "User has been created, a verification otp has been sent on the registered email, if no email has been recieved, try to go to /email/resend",
+  LOGGED_IN: "Successfully logged in",
 };
