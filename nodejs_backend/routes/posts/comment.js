@@ -35,7 +35,7 @@ router.get("/", async (req, res) => {
       offset,
       limit: LIMIT,
       order,
-      include: [userInfoInclusion],
+      ...userInfoInclusion,
     });
 
     res.ok(m.SUCCESS.COMMENTS, {
