@@ -172,6 +172,8 @@ const verifyUser = async (userData, res) => {
   } catch (err) {
     console.log(err);
 
+    if (err instanceof TypeError) return res.forbidden(m.TOKEN_INVALID);
+
     res.serverError();
     return false;
   }
