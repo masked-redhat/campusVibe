@@ -56,4 +56,57 @@ const postVote = async (
   }
 };
 
+export const postVoteForAnswers = async (
+  answerId,
+  voteVal,
+  userId,
+  res,
+  entity = PostCommentVote
+) => {
+  if (checks.isNuldefined(answerId)) return res.noParams();
+
+  const t = await transaction();
+  try {
+    const prev = await entity.findOne({
+      where: { answerId, userId },
+    });
+
+    // if not voted then, create a vote
+    // if do voted, then update the vote
+    if (checks.isNuldefined(prev))
+      await entity.create(
+        {
+          vote: voteVal,
+          answerId,
+          userId,
+        },
+        { transaction: t }
+      );
+    else {
+      if (prev.vote === voteVal)
+        return res.failure(codes.BAD_REQUEST, m.SAME_VOTE);
+
+      await entity.update(
+        { vote: voteVal },
+        {
+          where: { answerId, userId },
+          individualHooks: true,
+          transaction: t,
+        }
+      );
+    }
+
+    await t.commit();
+
+    res.ok(m.VOTED);
+  } catch (err) {
+    console.log(err);
+    await t.rollback();
+
+    if (err instanceof ValidationError) return res.invalidParams();
+
+    res.serverError();
+  }
+};
+
 export default postVote;
