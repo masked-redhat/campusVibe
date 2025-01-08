@@ -1,4 +1,4 @@
-import { MESSAGES as loginMessages } from "./login";
+import { MESSAGES as loginMessages } from "./login.js";
 
 export const MESSAGES = {
   USERNAME_INVALID: loginMessages.USERNAME_INVALID,

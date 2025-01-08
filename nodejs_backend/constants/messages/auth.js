@@ -1,4 +1,4 @@
-import { MESSAGES as loginMessage } from "./login";
+import { MESSAGES as loginMessage } from "./login.js";
 
 export const MESSAGES = {
   NO_TOKEN: "No token in the request, try to put the token in headers",

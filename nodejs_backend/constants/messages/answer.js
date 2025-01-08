@@ -1,4 +1,4 @@
-import { MESSAGES as commentMessage } from "./comments";
+import { MESSAGES as commentMessage } from "./comments.js";
 
 export const MESSAGES = {
   ANSWERS_FOUND: "Got answers for you",
