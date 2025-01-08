@@ -1,22 +1,24 @@
 import { Router } from "express";
-import { serve } from "../../utils/response.js";
 import codes from "../../utils/codes.js";
-import MESSAGES from "../../constants/messages/global.js";
+import { MESSAGES as m } from "../../constants/messages/friends.js";
 import Friend, { alias } from "../../models/ORM/friends.js";
-import User from "../../models/ORM/user.js";
 import checks from "../../utils/checks.js";
-import { simpleOrder } from "../posts/route.js";
-import { Op } from "sequelize";
+import { Op, ValidationError } from "sequelize";
 import limits from "../../constants/limits.js";
-import { userInfoByAlias } from "../../db/sql/commands.js";
+import {
+  getUserIdFromUsername,
+  userInfoByAlias,
+} from "../../db/sql/commands.js";
 import transaction from "../../db/sql/transaction.js";
-
-const router = Router();
 
 const LIMIT = limits.FRIEND.REQUEST;
 
+const router = Router();
+
 router.get("/", async (req, res) => {
-  const uid = req.user.id;
+  const userId = req.user.id;
+
+  // get the parameters from request query
   const {
     offset: rawOffset,
     sent: requestSent,
@@ -24,18 +26,19 @@ router.get("/", async (req, res) => {
     accepted: requestAccepted,
     rejected: requestRejected,
   } = req.query;
+
+  // modify the parameters as appropriate
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
   const sent = !checks.isNuldefined(requestSent),
     recieved = !checks.isNuldefined(requestRecieved);
 
-  const whereObj = sent ? { userId: uid } : recieved ? { friendId: uid } : null;
+  const whereObj = sent ? { userId } : recieved ? { friendId: userId } : null;
   const accepted = checks.isTrue(requestAccepted);
   const rejected = checks.isTrue(requestRejected);
 
-  if (checks.isNuldefined(whereObj)) {
-    serve(res, codes.BAD_REQUEST, "Add sent or recieved parameters to true");
-    return;
-  }
+  // if no where object, to make a search
+  // sent or recieved have to be given by user
+  if (checks.isNuldefined(whereObj)) return res.noParams();
 
   try {
     const requests = await Friend.findAll({
@@ -47,26 +50,28 @@ router.get("/", async (req, res) => {
       },
       offset,
       limit: LIMIT,
-      order: simpleOrder("updatedAt"),
+      order: [["updatedAt", "desc"]],
       include: [
-        userInfoByAlias(alias.userId, "userId"),
-        userInfoByAlias(alias.friendId, "friendId"),
+        userInfoByAlias(alias.userId, "userId").include,
+        userInfoByAlias(alias.friendId, "friendId").include,
       ],
     });
 
-    serve(res, codes.OK, "Requests", {
+    res.ok(m.SUCCESS.REQUESTS, {
       requests,
       offsetNext: offset + requests.length,
     });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
 router.get("/all", async (req, res) => {
-  const uid = req.user.id;
+  const userId = req.user.id;
+
+  // get the parameters from request query
   const { offset: rawOffset } = req.query;
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
 
@@ -74,201 +79,192 @@ router.get("/all", async (req, res) => {
     const requests = await Friend.findAll({
       attributes: { exclude: ["updatedAt", "id", "userId", "friendId"] },
       where: {
-        [Op.or]: [{ userId: uid }, { friendId: uid }],
+        [Op.or]: [{ userId }, { friendId: userId }],
         requestAccepted: false,
       },
       offset,
       limit: LIMIT,
-      order: simpleOrder("updatedAt"),
+      order: [["updatedAt", "desc"]],
       include: [
-        userInfoByAlias(alias.userId, "userId"),
-        userInfoByAlias(alias.friendId, "friendId"),
+        userInfoByAlias(alias.userId, "userId").include,
+        userInfoByAlias(alias.friendId, "friendId").include,
       ],
     });
 
-    serve(res, codes.OK, "Requests", {
+    res.ok(m.SUCCESS.REQUESTS, {
       requests,
       offsetNext: offset + requests.length,
     });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
 router.post("/", async (req, res) => {
-  const uid = req.user.id;
+  const userId = req.user.id;
+
+  // get the username you want to request for friend
   const { username } = req.body;
 
-  if (username === req.user.username) {
-    serve(res, codes.BAD_REQUEST, "Cannot send friend request to yourself");
-    return;
-  }
+  // username if required to send a friend request
+  if (checks.isNuldefined(username)) return res.noParams();
+
+  // if username is same as user's
+  if (username === req.user.username)
+    return res.failure(codes.BAD_REQUEST, m.REQUEST_TO_SELF);
 
   try {
-    const friend = await User.findOne({
-      attributes: ["id"],
-      where: { username },
-    });
+    const friendId = await getUserIdFromUsername(username);
 
-    if (checks.isNuldefined(friend)) {
-      serve(res, codes.BAD_REQUEST, "No user with that username");
-      return;
-    }
+    if (checks.isNuldefined(friendId))
+      return res.failure(codes.BAD_REQUEST, m.USERNAME_INVALID);
 
-    const friendId = friend.id;
-
+    // find if there already exist a request/friendship between
+    // both users
     let friendFound = await Friend.findOne({
       where: {
         [Op.or]: [
-          { userId: uid, friendId },
-          { friendId: uid, userId: friendId },
+          { userId, friendId },
+          { friendId: userId, userId: friendId },
         ],
       },
     });
 
-    if (checks.isNuldefined(friendFound)) {
-      await Friend.create({
-        userId: uid,
-        friendId,
-      });
-    } else if (friendFound.requestAccepted === true) {
-      serve(res, codes.BAD_REQUEST, "Already friends");
-      return;
-    } else if (friendFound.requestRejected === true) {
+    // if no relation (never sent a request, nor are friends)
+    if (checks.isNuldefined(friendFound))
+      await Friend.create({ userId, friendId });
+    // if already friends
+    else if (friendFound.requestAccepted === true)
+      return res.failure(codes.BAD_REQUEST, m.FRIENDS_ALREADY);
+    // if the requested user had rejected the user
+    else if (friendFound.requestRejected === true)
       await Friend.update(
         { requestRejected: false },
         { individualHooks: true }
       );
-    } else if (
-      friendFound.requestAccepted === false &&
-      friendFound.requestRejected === false
-    ) {
-      serve(res, codes.BAD_REQUEST, "Request already sent");
-      return;
-    }
+    // if request already sent, but no action was taken by user
+    else if (!friendFound.requestAccepted && !friendFound.requestRejected)
+      return res.failure(codes.BAD_REQUEST, m.REQUEST_SENT_ALREADY);
 
-    serve(res, codes.CREATED, "Friend Request Sent");
+    res.created(m.REQUEST_SENT);
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    if (err instanceof ValidationError) return res.invalidParams();
+
+    res.serverError();
   }
 });
 
 router.post("/accept", async (req, res) => {
-  const uid = req.user.id;
+  const userId = req.user.id;
+
+  // get username from request body
   const { username } = req.body;
+
+  // username is required
+  if (checks.isNuldefined(username)) return res.noParams();
 
   const t = await transaction();
   try {
-    const friend = await User.findOne({
-      attributes: ["id"],
-      where: { username },
-    });
+    const friendId = await getUserIdFromUsername(username);
 
-    if (checks.isNuldefined(friend)) {
-      serve(res, codes.BAD_REQUEST, "No user with that username");
-      return;
-    }
+    if (checks.isNuldefined(friendId))
+      return res.failure(codes.BAD_REQUEST, m.USERNAME_INVALID);
 
-    const friendId = friend.id;
-
-    const acceptRequest = await Friend.update(
+    // make the request accepted field true
+    const [acceptRequest] = await Friend.update(
       { requestAccepted: true },
       {
-        where: {
-          userId: friendId,
-          friendId: uid,
-        },
+        where: { userId: friendId, friendId: userId },
         individualHooks: true,
         transaction: t,
       }
     );
 
     await t.commit();
-    serve(res, codes.OK, "Friend Request Accepted");
+
+    if (acceptRequest === 0)
+      return res.failure(codes.BAD_REQUEST, m.NO_REQUEST_SENT_WHY.ACCEPT);
+
+    res.ok(m.REQUEST_ACCEPTED);
   } catch (err) {
     console.log(err);
     await t.rollback();
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    if (err instanceof ValidationError) return res.invalidParams();
+
+    res.serverError();
   }
 });
 
 router.post("/reject", async (req, res) => {
-  const uid = req.user.id;
+  const userId = req.user.id;
+
+  // get username from request body
   const { username } = req.body;
 
+  // username is required
+  if (checks.isNuldefined(username)) return res.noParams();
+
   try {
-    const friend = await User.findOne({
-      attributes: ["id"],
-      where: { username },
-    });
+    const friendId = await getUserIdFromUsername(username);
 
-    if (checks.isNuldefined(friend)) {
-      serve(res, codes.BAD_REQUEST, "No user with that username");
-      return;
-    }
+    if (checks.isNuldefined(friendId))
+      return res.failure(codes.BAD_REQUEST, m.USERNAME_INVALID);
 
-    const friendId = friend.id;
-
-    const rejectRequest = await Friend.update(
+    // make the request rejected field true
+    const [rejectRequest] = await Friend.update(
       { requestRejected: true },
-      {
-        where: {
-          userId: friendId,
-          friendId: uid,
-          individualHooks: true,
-        },
-      }
+      { where: { userId: friendId, friendId: userId }, individualHooks: true }
     );
 
-    serve(res, codes.OK, "Friend Request Rejected");
+    if (rejectRequest === 0)
+      return res.failure(codes.BAD_REQUEST, m.NO_REQUEST_SENT_WHY.REJECT);
+
+    res.ok(m.REQUEST_REJECTED);
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    if (err instanceof ValidationError) return res.invalidParams();
+
+    res.serverError();
   }
 });
 
 router.delete("/", async (req, res) => {
-  const uid = req.user.id;
+  const userId = req.user.id;
+
+  // get the username from request query
   const { username } = req.query;
 
+  // username is required
+  if (checks.isNuldefined(username)) return res.noParams();
+
   try {
-    const friend = await User.findOne({
-      attributes: ["id"],
-      where: { username },
-    });
+    const friendId = await getUserIdFromUsername(username);
 
-    if (checks.isNuldefined(friend)) {
-      serve(res, codes.BAD_REQUEST, "No user with that username");
-      return;
-    }
+    if (checks.isNuldefined(friendId))
+      return res.failure(codes.BAD_REQUEST, m.USERNAME_INVALID);
 
-    const friendId = friend.id;
-
+    // destroy the request if not already friends and already not rejected
     const deleted = await Friend.destroy({
-      where: {
-        userId: uid,
-        friendId,
-      },
+      where: { userId, friendId },
       requestAccepted: false,
       requestRejected: false,
     });
 
-    serve(res, codes.NO_CONTENT);
+    if (deleted === 0)
+      return res.failure(codes.BAD_REQUEST, m.NO_REQUEST_SENT_WHY.DELETE);
+
+    res.deleted();
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
-});
-
-router.all("*", (_, res) => {
-  res.sendStatus(405);
 });
 
 export const RequestRouter = router;

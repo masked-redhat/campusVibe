@@ -1,81 +1,73 @@
 import { Router } from "express";
-import { serve } from "../../utils/response.js";
 import codes from "../../utils/codes.js";
-import MESSAGES from "../../constants/messages/global.js";
+import { MESSAGES as m } from "../../constants/messages/friends.js";
 import Friend, { alias } from "../../models/ORM/friends.js";
 import { Op } from "sequelize";
 import checks from "../../utils/checks.js";
 import { RequestRouter } from "./request.js";
 import limits from "../../constants/limits.js";
-import { userInfoByAlias } from "../../db/sql/commands.js";
-import User from "../../models/ORM/user.js";
+import {
+  getUserIdFromUsername,
+  userInfoByAlias,
+} from "../../db/sql/commands.js";
 import transaction from "../../db/sql/transaction.js";
-
-const router = Router();
 
 const LIMIT = limits.FRIEND._;
 
+const router = Router();
+
 router.get("/", async (req, res) => {
-  const uid = req.user.id;
+  // get the user Id which will be useful
+  const userId = req.user.id;
+
+  // offset, how many friends to skip over, from request query
   const { offset: rawOffset } = req.query;
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
 
   try {
+    // all friends where request accepted is true
     const friends = await Friend.findAll({
       attributes: { exclude: ["updatedAt", "id", "userId", "friendId"] },
       where: {
-        [Op.or]: [{ userId: uid }, { friendId: uid }],
+        [Op.or]: [{ userId }, { friendId: userId }],
         requestAccepted: true,
       },
       offset,
       limit: LIMIT,
       include: [
-        userInfoByAlias(alias.userId, "userId"),
-        userInfoByAlias(alias.friendId, "friendId"),
+        userInfoByAlias(alias.userId, "userId").include,
+        userInfoByAlias(alias.friendId, "friendId").include,
       ],
     });
 
-    serve(res, codes.OK, "Friends", {
-      friends,
-      offsetNext: offset + friends.length,
-    });
+    res.ok(m.SUCCESS.FRIENDS, { friends, offsetNext: offset + friends.length });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
-router.use("/request", RequestRouter);
-
 router.delete("/", async (req, res) => {
-  const uid = req.user.id;
+  const userId = req.user.id;
+
+  // get username from request query, for whom to unfriend
   const { username } = req.query;
 
-  if (checks.isNuldefined(username)) {
-    serve(res, codes.BAD_REQUEST, "No username found in request");
-    return;
-  }
+  if (checks.isNuldefined(username)) return res.noParams();
 
   const t = await transaction();
   try {
-    const friend = await User.findOne({
-      attributes: ["id"],
-      where: { username },
-    });
+    const friendId = await getUserIdFromUsername(username);
 
-    if (checks.isNuldefined(friend)) {
-      serve(res, codes.BAD_REQUEST, "No user with that username");
-      return;
-    }
+    if (checks.isNuldefined(friendId))
+      return res.failure(codes.BAD_REQUEST, m.USERNAME_INVALID);
 
-    const friendId = friend.id;
-
-    const friendDelete = await Friend.destroy({
+    await Friend.destroy({
       where: {
         [Op.or]: [
-          { userId: uid, friendId: friendId },
-          { friendId: uid, userId: friendId },
+          { userId, friendId },
+          { friendId: userId, userId: friendId },
         ],
         requestAccepted: true,
       },
@@ -85,17 +77,15 @@ router.delete("/", async (req, res) => {
 
     await t.commit();
 
-    serve(res, codes.NO_CONTENT);
+    res.deleted();
   } catch (err) {
     console.log(err);
     await t.rollback();
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
-router.all("*", (_, res) => {
-  res.sendStatus(405);
-});
+router.use("/request", RequestRouter);
 
 export const FriendRouter = router;
