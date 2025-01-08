@@ -1,101 +1,62 @@
 import { Router } from "express";
 import ForumVote from "../../models/ORM/forum/forum_votes.js";
 import limits from "../../constants/limits.js";
-import { simpleOrder } from "../posts/route.js";
 import { userInfoInclusion } from "../../db/sql/commands.js";
 import checks from "../../utils/checks.js";
-import { serve } from "../../utils/response.js";
-import MESSAGES from "../../constants/messages/global.js";
-import codes from "../../utils/codes.js";
-import transaction from "../../db/sql/transaction.js";
-
-const router = Router();
+import { MESSAGES as m } from "../../constants/messages/forum.js";
+import postVote from "../../utils/comment.js";
 
 const LIMIT = limits.FORUM.VOTE;
 
+const router = Router();
+
 router.get("/", async (req, res) => {
-  const { offset: rawOffset, forumId } = req.query;
+  const { forumId, offset: rawOffset } = req.query;
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
 
-  if (checks.isNuldefined(forumId)) {
-    serve(res, codes.BAD_REQUEST, "No forum Id found in request");
-    return;
-  }
+  // forumId is required
+  if (checks.isNuldefined(forumId)) return res.noParams();
 
   try {
+    // get votes of which they are not zero
     const votes = await ForumVote.findAll({
-      where: { forumId },
+      where: { forumId, vote: { $ne: 0 } },
       limit: LIMIT,
       offset,
-      order: simpleOrder("createdAt"),
-      include: [userInfoInclusion],
+      order: [["createdAt", "desc"]],
+      ...userInfoInclusion,
     });
 
-    serve(res, codes.OK, "Votes", { votes, offsetNext: offset + votes.length });
+    res.ok(m.SUCCESS.VOTES, { votes, offsetNext: offset + votes.length });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
-router.post("/", async (req, res) => {
-  let { forumId, voteVal: num } = req.body;
+router.post("/upvote", async (req, res) => {
+  // get the forumId from the request body
+  const { forumId } = req.body;
+  const voteVal = 1;
 
-  try {
-    num = parseInt(num);
-  } catch (err) {
-    console.log(err);
-
-    serve(res, codes.BAD_REQUEST, "Invalid parameters given");
-    return;
-  }
-
-  const voteVal = num;
-
-  if (![-1, 0, 1].includes(voteVal)) {
-    serve(res, codes.BAD_REQUEST, "Invalid parameters given");
-    return;
-  }
-
-  let vote;
-  const t = await transaction();
-  try {
-    const find = await ForumVote.findOne({
-      where: { forumId, userId: req.user.id },
-    });
-
-    if (checks.isNuldefined(find))
-      vote = await ForumVote.create(
-        {
-          vote: voteVal,
-          forumId,
-          userId: req.user.id,
-        },
-        { transaction: t }
-      );
-    else
-      vote = await ForumVote.update(
-        { vote: voteVal },
-        {
-          where: { forumId, userId: req.user.id },
-          individualHooks: true,
-          transaction: t,
-        }
-      );
-
-    await t.commit();
-    serve(res, codes.OK, "Voted");
-  } catch (err) {
-    console.log(err);
-    await t.rollback();
-
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-  }
+  postVote(forumId, voteVal, req.user.id, res, ForumVote);
 });
 
-router.all("*", (_, res) => {
-  res.sendStatus(405);
+router.post("/downvote", async (req, res) => {
+  // get the forumId from the request body
+  const { forumId } = req.body;
+  const voteVal = -1;
+
+  postVote(forumId, voteVal, req.user.id, res, ForumVote);
+});
+
+router.post("/vote/reset", async (req, res) => {
+  // get the forumId from the request body
+  const { forumId } = req.body;
+  const voteVal = 0;
+
+  postVote(forumId, voteVal, req.user.id, res, ForumVote);
 });
 
 export const VoteRouter = router;

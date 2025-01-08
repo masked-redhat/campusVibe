@@ -1,6 +1,5 @@
 import { Router } from "express";
 import PostComment from "../../models/ORM/post/post_comments.js";
-import { simpleOrder } from "./route.js";
 import checks from "../../utils/checks.js";
 import codes from "../../utils/codes.js";
 import { MESSAGES as m } from "../../constants/messages/comments.js";
@@ -9,6 +8,7 @@ import PostCommentVote from "../../models/ORM/post/post_comments_votes.js";
 import limits from "../../constants/limits.js";
 import transaction from "../../db/sql/transaction.js";
 import { userInfoInclusion } from "../../db/sql/commands.js";
+import postVote from "../../utils/comment.js";
 
 const LIMIT = limits.POST.COMMENT;
 
@@ -210,7 +210,7 @@ router.get("/vote", async (req, res) => {
       where: { commentId, vote: { $ne: 0 } },
       limit: LIMIT,
       offset,
-      order: simpleOrder("createdAt"),
+      order: [["createdAt", "desc"]],
       ...userInfoInclusion,
     });
 
@@ -223,7 +223,7 @@ router.get("/vote", async (req, res) => {
 });
 
 router.post("/upvote", async (req, res) => {
-  // get the commentId and vote value from the request body
+  // get the commentId from the request body
   const { commentId } = req.body;
   const voteVal = 1;
 
@@ -231,7 +231,7 @@ router.post("/upvote", async (req, res) => {
 });
 
 router.post("/downvote", async (req, res) => {
-  // get the commentId and vote value from the request body
+  // get the commentId from the request body
   const { commentId } = req.body;
   const voteVal = -1;
 
@@ -239,60 +239,12 @@ router.post("/downvote", async (req, res) => {
 });
 
 router.post("/vote/reset", async (req, res) => {
-  // get the commentId and vote value from the request body
+  // get the commentId from the request body
   const { commentId } = req.body;
   const voteVal = 0;
 
   postVote(commentId, voteVal, req.user.id, res);
 });
-
-// Same function used to update/create the vote
-const postVote = async (commentId, voteVal, userId, res) => {
-  if (checks.isNuldefined(commentId)) return res.noParams();
-
-  const t = await transaction();
-  try {
-    const prev = await PostCommentVote.findOne({
-      where: { commentId, userId },
-    });
-
-    // if not voted then, create a vote
-    // if do voted, then update the vote
-    if (checks.isNuldefined(prev))
-      await PostCommentVote.create(
-        {
-          vote: voteVal,
-          commentId,
-          userId,
-        },
-        { transaction: t }
-      );
-    else {
-      if (prev.vote === voteVal)
-        return res.failure(codes.BAD_REQUEST, m.SAME_VOTE);
-
-      await PostCommentVote.update(
-        { vote: voteVal },
-        {
-          where: { commentId, userId },
-          individualHooks: true,
-          transaction: t,
-        }
-      );
-    }
-
-    await t.commit();
-
-    res.ok(m.VOTED);
-  } catch (err) {
-    console.log(err);
-    await t.rollback();
-
-    if (err instanceof ValidationError) return res.invalidParams();
-
-    res.serverError();
-  }
-};
 
 // votes will never get deleted
 

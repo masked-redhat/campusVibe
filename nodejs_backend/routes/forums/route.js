@@ -3,66 +3,57 @@ import limits from "../../constants/limits.js";
 import checks from "../../utils/checks.js";
 import Forum from "../../models/ORM/forum/forums.js";
 import { userInfoInclusion } from "../../db/sql/commands.js";
-import { simpleOrder } from "../posts/route.js";
 import codes from "../../utils/codes.js";
-import MESSAGES from "../../constants/messages/global.js";
-import { serve } from "../../utils/response.js";
-import User from "../../models/ORM/user.js";
+import { MESSAGES as m } from "../../constants/messages/forum.js";
 import transaction from "../../db/sql/transaction.js";
 import { VoteRouter } from "./forum_vote.js";
-
-const router = Router();
+import { ValidationError } from "sequelize";
 
 const LIMIT = limits.FORUM._;
 
+const router = Router();
+
 router.get("/", async (req, res) => {
+  // get the username and offset, username if you want a specific
+  // user's forums
   const { offset: rawOffset, username } = req.query;
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
 
   try {
-    const userId = username
-      ? (
-          await User.findOne({
-            attributes: ["id"],
-            where: { username },
-          })
-        )?.id
-      : req.user.id;
+    const userId =
+      username && username !== req.user.username
+        ? await getUserIdFromUsername(username)
+        : req.user.id;
 
-    if (checks.isNuldefined(userId)) {
-      serve(res, codes.BAD_REQUEST, "No user with that username");
-      return;
-    }
+    // if no user Id
+    if (checks.isNuldefined(userId))
+      return res.failure(codes.BAD_REQUEST, m.USERNAME_INVALID);
 
     const forums = await Forum.findAll({
       attributes: { exclude: "userId" },
       where: { userId },
       offset,
       limit: LIMIT,
-      order: simpleOrder("updatedAt"),
-      include: [userInfoInclusion],
+      order: [["updatedAt", "desc"]],
+      ...userInfoInclusion,
     });
 
-    serve(res, codes.OK, "Forums", {
-      forums,
-      offsetNext: offset + forums.length,
-    });
+    res.ok(m.SUCCESS.FORUMS, { forums, offsetNext: offset + forums.length });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
 router.post("/", async (req, res) => {
   const userId = req.user.id;
-  const { question, content } = req.body;
-  const images = req.files?.map((val) => val.filename) ?? [];
 
-  if (checks.isNuldefined(question)) {
-    serve(res, codes.BAD_REQUEST, "No question given");
-    return;
-  }
+  // get the parameters from request body
+  const { question = null, content, images = [] } = req.body;
+
+  // question is required for a forum
+  if (checks.isNuldefined(question)) return res.noParams();
 
   const t = await transaction();
   try {
@@ -72,66 +63,83 @@ router.post("/", async (req, res) => {
     );
 
     await t.commit();
-    serve(res, codes.CREATED, "Forum Created", { forumId: forum.id });
+
+    res.created(m.CREATED, { forumId: forum.id });
   } catch (err) {
     console.log(err);
     await t.rollback();
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    if (err instanceof ValidationError) return res.invalidParams();
+
+    res.serverError();
   }
 });
 
 router.patch("/", async (req, res) => {
   const userId = req.user.id;
-  const { question, content, forumId } = req.body;
-  const images = req.files?.map((val) => val.filename) ?? [];
 
-  const updateData = {
-    ...(question ? { question } : {}),
-    ...(content ? { content } : {}),
-    ...(checks.isNuldefined(images) ? { images } : {}),
-  };
+  // get the parameters from request body
+  const { question = null, content, forumId = null, images = [] } = req.body;
 
-  if (checks.isNuldefined(updateData)) {
-    serve(res, codes.BAD_REQUEST, "Nothing to patch");
-    return;
-  }
+  // forum Id is required to update that forum
+  if (checks.isNuldefined(forumId)) return res.noParams();
+
+  // udpate only data that is provided
+  const updateData = Object.fromEntries(
+    Object.entries({ question, content, images }).filter(
+      ([_, value]) => !checks.isNuldefined(value)
+    )
+  );
+
+  // if no update data
+  if (checks.isNuldefined(updateData)) return res.ok(m.NO_PARAMS);
 
   try {
     await Forum.update(updateData, { where: { userId, id: forumId } });
-    serve(res, codes.OK, "Forum Updated");
+
+    res.ok(m.UPDATED);
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    if (err instanceof ValidationError) return res.invalidParams();
+
+    res.serverError();
   }
 });
 
 router.put("/", async (req, res) => {
   const userId = req.user.id;
-  const { question = null, content = null, forumId } = req.body;
-  const images = req.files?.map((val) => val.filename) ?? [];
 
-  const updateData = { question, content, images };
+  // get the parameters from request body
+  const { question = null, content, forumId = null, images = [] } = req.body;
 
-  if (checks.isNuldefined(updateData)) {
-    serve(res, codes.BAD_REQUEST, "Nothing to patch");
-    return;
-  }
+  // forum Id is required to update that forum
+  if (checks.isAnyValueNull([question, forumId])) return res.noParams();
+
+  // udpate all
+  const updateData = { question, content: content ?? null, images };
 
   try {
     await Forum.update(updateData, { where: { userId, id: forumId } });
-    serve(res, codes.OK, "Forum Updated");
+
+    res.ok(m.UPDATED);
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    if (err instanceof ValidationError) return res.invalidParams();
+
+    res.serverError();
   }
 });
 
 router.delete("/", async (req, res) => {
   const userId = req.user.id;
+
+  // get forum id from request query
   const { forumId } = req.query;
+
+  // forum Id is required to delete the forum
+  if (checks.isNuldefined(forumId)) return res.noParams();
 
   const t = await transaction();
   try {
@@ -142,19 +150,15 @@ router.delete("/", async (req, res) => {
 
     await t.commit();
 
-    serve(res, codes.NO_CONTENT);
+    res.deleted();
   } catch (err) {
     console.log(err);
     await t.rollback();
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
 router.use("/vote", VoteRouter);
-
-router.all("*", (_, res) => {
-  res.sendStatus(405);
-});
 
 export const ForumsRouter = router;

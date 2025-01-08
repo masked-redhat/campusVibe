@@ -26,7 +26,7 @@ router.get("/", async (req, res) => {
     // get userId for the username
     const userId =
       username && username !== req.user.username
-        ? getUserIdFromUsername(username)
+        ? await getUserIdFromUsername(username)
         : req.user.id;
 
     // find and sort the posts and add an attribute
