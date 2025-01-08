@@ -1,8 +1,6 @@
 import { Router } from "express";
 import Post from "../../models/ORM/post/posts.js";
-import codes from "../../utils/codes.js";
-import MESSAGES from "../../constants/messages/global.js";
-import { serve } from "../../utils/response.js";
+import { MESSAGES as m } from "../../constants/messages/feed.js";
 import checks from "../../utils/checks.js";
 import limits from "../../constants/limits.js";
 import Friend from "../../models/ORM/friends.js";
@@ -11,20 +9,24 @@ import { PostRouter } from "./post.js";
 import { userInfoInclusion } from "../../db/sql/commands.js";
 import Forum from "../../models/ORM/forum/forums.js";
 
-const router = Router();
-
 const LIMIT = limits.FEED._;
 
+const router = Router();
+
+// types of feed that can be
 const types = {
   FORYOU: "relevance",
   GLOBAL: "all",
 };
 
 router.get("/", async (req, res) => {
-  const uid = req.user.id;
+  const userId = req.user.id;
+
+  // get the offset and type
   const { offset: rawOffset, type: rawType } = req.query;
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
 
+  // set type to something from the 'types'
   const type = !checks.isNuldefined(rawType)
     ? rawType.trim() === types.FORYOU
       ? types.FORYOU
@@ -33,38 +35,9 @@ router.get("/", async (req, res) => {
 
   try {
     let friends = [];
-    if (type === types.FORYOU) {
-      const CHUNK_SIZE = 10000; // Adjust chunk size
-      let offset = 0;
+    if (type === types.FORYOU) await fillFriends(friends, userId);
 
-      while (true) {
-        const chunk = await Friend.findAll({
-          attributes: [
-            [
-              literal(`
-                  CASE
-                    WHEN "userId" = ${uid} THEN "friendId"
-                    ELSE "userId"
-                  END
-                `),
-              "friendId",
-            ],
-          ],
-          where: {
-            [Op.or]: [{ userId: uid }, { friendId: uid }],
-          },
-          limit: CHUNK_SIZE,
-          offset,
-          raw: true, // Use plain objects
-        });
-
-        if (chunk.length === 0) break; // Exit if no more data
-
-        friends = friends.concat(chunk.map((row) => row.friendId));
-        offset += CHUNK_SIZE;
-      }
-    }
-
+    // get posts as per the requirements
     const posts = await Post.findAll({
       attributes: { exclude: "userId" },
       where: {
@@ -72,9 +45,9 @@ router.get("/", async (req, res) => {
           type === types.FORYOU
             ? {
                 [Op.in]: friends,
-                [Op.not]: uid,
+                [Op.not]: userId,
               }
-            : { [Op.not]: uid },
+            : { [Op.not]: userId },
       },
       order: [
         ["updatedAt", "desc"],
@@ -82,22 +55,20 @@ router.get("/", async (req, res) => {
       ],
       limit: LIMIT,
       offset,
-      include: [userInfoInclusion],
+      ...userInfoInclusion,
     });
 
-    serve(res, codes.OK, "Your Feed", {
-      posts,
-      offsetNext: offset + posts.length,
-    });
+    res.ok(m.SUCCESS, { posts, offsetNext: offset + posts.length });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
 router.get("/forum", async (req, res) => {
-  const uid = req.user.id;
+  const userId = req.user.id;
+
   const { offset: rawOffset, type: rawType } = req.query;
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
 
@@ -109,48 +80,18 @@ router.get("/forum", async (req, res) => {
 
   try {
     let friends = [];
-    if (type === types.FORYOU) {
-      const CHUNK_SIZE = 10000; // Adjust chunk size
-      let offset = 0;
+    if (type === types.FORYOU) await fillFriends(friends, userId);
 
-      while (true) {
-        const chunk = await Friend.findAll({
-          attributes: [
-            [
-              literal(`
-                  CASE
-                    WHEN "userId" = ${uid} THEN "friendId"
-                    ELSE "userId"
-                  END
-                `),
-              "friendId",
-            ],
-          ],
-          where: {
-            [Op.or]: [{ userId: uid }, { friendId: uid }],
-          },
-          limit: CHUNK_SIZE,
-          offset,
-          raw: true, // Use plain objects
-        });
-
-        if (chunk.length === 0) break; // Exit if no more data
-
-        friends = friends.concat(chunk.map((row) => row.friendId));
-        offset += CHUNK_SIZE;
-      }
-    }
-
-    const posts = await Forum.findAll({
+    const forums = await Forum.findAll({
       attributes: { exclude: "userId" },
       where: {
         userId:
           type === types.FORYOU
             ? {
                 [Op.in]: friends,
-                [Op.not]: uid,
+                [Op.not]: userId,
               }
-            : { [Op.not]: uid },
+            : { [Op.not]: userId },
       },
       order: [
         ["answered", "asc"],
@@ -161,24 +102,50 @@ router.get("/forum", async (req, res) => {
       ],
       limit: LIMIT,
       offset,
-      include: [userInfoInclusion],
+      ...userInfoInclusion,
     });
 
-    serve(res, codes.OK, "Your Forum Feed", {
-      posts,
-      offsetNext: offset + posts.length,
-    });
+    res.ok(m.SUCCESS, { forums, offsetNext: offset + forums.length });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
 router.use("/post", PostRouter);
 
-router.all("*", (_, res) => {
-  res.sendStatus(405);
-});
+// get friends of the userID: uid
+const fillFriends = async (friends, uid) => {
+  const CHUNK_SIZE = 10000; // Adjust chunk size
+  let offset = 0;
+
+  while (true) {
+    const chunk = await Friend.findAll({
+      attributes: [
+        [
+          literal(`
+                  CASE
+                    WHEN "userId" = ${uid} THEN "friendId"
+                    ELSE "userId"
+                  END
+                `),
+          "friendId",
+        ],
+      ],
+      where: {
+        [Op.or]: [{ userId: uid }, { friendId: uid }],
+      },
+      limit: CHUNK_SIZE,
+      offset,
+      raw: true, // Use plain objects
+    });
+
+    if (chunk.length === 0) break; // Exit if no more data
+
+    friends = friends.concat(chunk.map((row) => row.friendId));
+    offset += CHUNK_SIZE;
+  }
+};
 
 export const FeedRouter = router;

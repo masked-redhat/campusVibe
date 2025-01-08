@@ -1,32 +1,30 @@
 import { Router } from "express";
 import Post from "../../models/ORM/post/posts.js";
-import codes from "../../utils/codes.js";
-import MESSAGES from "../../constants/messages/global.js";
-import { serve } from "../../utils/response.js";
 import { userInfoInclusion } from "../../db/sql/commands.js";
+import checks from "../../utils/checks.js";
 
 const router = Router();
 
 router.get("/", async (req, res) => {
+  // get the postId for which want the information
   const { postId } = req.query;
+
+  // postId is required
+  if (checks.isNuldefined(postId)) res.noParams();
 
   try {
     const post = await Post.findOne({
       attributes: { exclude: ["id", "userId"] },
       where: { id: postId },
-      include: [userInfoInclusion],
+      ...userInfoInclusion,
     });
 
-    serve(res, codes.OK, `Post with Id ${postId}`, { post });
+    res.ok(`Post with Id ${postId}`, { post });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
-});
-
-router.all("*", (_, res) => {
-  res.sendStatus(405);
 });
 
 export const PostRouter = router;
