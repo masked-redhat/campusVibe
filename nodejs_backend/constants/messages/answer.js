@@ -1,3 +1,5 @@
+import { MESSAGES as commentMessage } from "./comments";
+
 export const MESSAGES = {
   ANSWERS_FOUND: "Got answers for you",
   CREATED: "Answer created",
@@ -11,4 +13,16 @@ export const MESSAGES = {
   COMMENT_UPDATED: "Comment has been updated",
   NO_COMMENT_ID: "No comment Id given",
   VOTED: "Voted on this comment",
+
+  SUCCESS: "Answers",
+  ANSWERED: "Answered",
+  UPDATED: "Answer updated",
+  VOTES: commentMessage.SUCCESS.VOTES,
+  FORUM_ID_INVALID: "Forum Id is invalid, No forum found with that Id",
+  IDS_INVALID:
+    "Forum of forumId given does not have any answer of given answerId",
+  ACCEPTED: {
+    SET: "Set as accepted answer",
+    REMOVE: "Removed as accepted answer",
+  },
 };

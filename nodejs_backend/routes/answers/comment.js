@@ -1,20 +1,18 @@
 import { Router } from "express";
 import AnswerComment from "../../models/ORM/forum/answer_comments.js";
-import { simpleOrder } from "../posts/route.js";
-import { serve } from "../../utils/response.js";
 import checks from "../../utils/checks.js";
 import codes from "../../utils/codes.js";
-import MESSAGES from "../../constants/messages/global.js";
-import { MESSAGES as m } from "../../constants/messages/answer.js";
+import { MESSAGES as m } from "../../constants/messages/comments.js";
 import { ForeignKeyConstraintError, literal, ValidationError } from "sequelize";
 import AnswerCommentVote from "../../models/ORM/forum/answer_comment_votes.js";
 import limits from "../../constants/limits.js";
 import transaction from "../../db/sql/transaction.js";
 import { userInfoInclusion } from "../../db/sql/commands.js";
-
-const router = Router();
+import postVote from "../../utils/comment.js";
 
 const LIMIT = limits.FORUM.ANSWER.COMMENT;
+
+const router = Router();
 
 router.get("/", async (req, res) => {
   // answerId can be array too [id1, id2, id3]
@@ -23,153 +21,133 @@ router.get("/", async (req, res) => {
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
   let answerId;
   try {
-    answerId = JSON.parse(rawAnswerId);
-  } catch (err) {
-    console.log(err);
+    answerId = JSON.parse(answerId);
+  } catch {}
 
-    answerId = rawAnswerId;
-  }
+  if (checks.isNuldefined(answerId)) res.noParams();
 
-  if (checks.isNuldefined(answerId)) {
-    serve(res, codes.BAD_REQUEST, m.NO_ANSWER_ID);
-    return;
-  }
-
-  let order = simpleOrder("createdAt");
+  let order = [["createdAt", "desc"]];
   if (filter === "HIGHEST_VOTE")
-    order = simpleOrder(literal("(upvotes - downvotes)"));
+    order = [[literal("(upvotes - downvotes)"), "desc"]];
 
-  let comments;
   try {
-    comments = await AnswerComment.findAll({
+    const comments = await AnswerComment.findAll({
       attributes: { exclude: ["replyId", "votes"] },
-      where: {
-        answerId,
-        replyId: null,
-      },
+      where: { answerId, replyId: null },
       limit: LIMIT,
       offset,
       order,
-      include: [userInfoInclusion],
+      ...userInfoInclusion,
+    });
+
+    res.ok(m.SUCCESS.COMMENTS, {
+      comments,
+      offsetNext: comments.length + offset,
     });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-    return;
+    res.serverError();
   }
-
-  serve(res, codes.OK, "Comments", {
-    comments,
-    offsetNext: comments.length + offset,
-  });
 });
 
 // if commentId given, will be treated as a reply
 router.post("/", async (req, res) => {
-  const { answerId, comment, commentId } = req.body;
-  const images = req.files?.map((val) => val.filename) ?? [];
+  const { answerId, comment = null, commentId = null, images = [] } = req.body;
   const replyId = checks.isNuldefined(commentId) ? null : commentId;
+
+  // if no answerId or no comment which are required, then send error message
+  if (checks.isAnyValueNull(answerId, comment)) return res.noParams();
 
   const t = await transaction();
   try {
     const answerComment = await AnswerComment.create(
-      {
-        answerId,
-        userId: req.user.id,
-        images,
-        comment,
-        replyId,
-      },
+      { answerId, userId: req.user.id, images, comment, replyId },
       { transaction: t }
     );
 
     await t.commit();
 
-    serve(res, codes.CREATED, m.COMMENTED);
+    res.created(m.COMMENTED, { commentId: answerComment.id });
   } catch (err) {
     console.log(err);
     await t.rollback();
 
-    if (err instanceof ValidationError) {
-      serve(res, codes.BAD_REQUEST, m.INVALID_VALUES);
-      return;
-    }
+    if (err instanceof (ValidationError || ForeignKeyConstraintError))
+      return res.invalidParams();
 
-    if (err instanceof ForeignKeyConstraintError) {
-      serve(res, codes.BAD_REQUEST, m.INVALID_VALUES);
-      return;
-    }
-
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
 router.patch("/", async (req, res) => {
-  const { commentId, comment } = req.body;
-  const images = req.files?.map((val) => val.filename) ?? [];
+  const { commentId, comment = null, images = [] } = req.body;
 
+  // commentId is required to update the comment data
+  if (checks.isNuldefined(commentId)) return res.noParams();
+
+  // only update data that is requested
   const updateData = Object.fromEntries(
-    Object.entries({
-      comment,
-      images,
-    }).filter(([_, value]) => !checks.isNuldefined(value))
+    Object.entries({ comment, images }).filter(
+      ([_, value]) => !checks.isNuldefined(value)
+    )
   );
 
   try {
-    const answerComment = await AnswerComment.update(updateData, {
+    const [answerComment] = await AnswerComment.update(updateData, {
       where: { id: commentId, userId: req.user.id },
     });
 
-    if (answerComment === 0) {
-      serve(res, codes.BAD_REQUEST, m.INVALID_VALUES);
-      return;
-    }
+    if (answerComment === 0)
+      return res.failure(codes.BAD_REQUEST, m.ID_WRONG_NO_ACCESS);
+
+    res.ok(m.UPDATED);
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-    return;
-  }
+    if (err instanceof ValidationError) return res.invalidParams();
 
-  serve(res, codes.OK, m.COMMENT_UPDATED);
+    res.serverError();
+  }
 });
 
 router.put("/", async (req, res) => {
-  const { commentId, comment } = req.body;
-  const images = req.files?.map((val) => val.filename) ?? [];
+  const { commentId, comment = null, images = [] } = req.body;
+
+  // commentId is required to update the comment data
+  if (checks.isNuldefined(commentId)) return res.noParams();
+
+  // replace all data with the given data
+  const updateData = { comment, images };
 
   try {
-    const answerComment = await AnswerComment.update(
-      { comment, images },
-      { where: { id: commentId, userId: req.user.id } }
-    );
+    const [answerComment] = await AnswerComment.update(updateData, {
+      where: { id: commentId, userId: req.user.id },
+    });
 
-    if (answerComment === 0) {
-      serve(res, codes.BAD_REQUEST, m.INVALID_VALUES);
-      return;
-    }
+    if (answerComment === 0)
+      return res.failure(codes.BAD_REQUEST, m.ID_WRONG_NO_ACCESS);
+
+    res.ok(m.UPDATED);
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-    return;
-  }
+    if (err instanceof ValidationError) return res.invalidParams();
 
-  serve(res, codes.OK, m.COMMENT_UPDATED);
+    res.serverError();
+  }
 });
 
 router.delete("/", async (req, res) => {
+  // get comment Id from request query
   const { commentId } = req.query;
 
-  if (checks.isNuldefined(commentId)) {
-    serve(res, codes.BAD_REQUEST, m.INVALID_VALUES);
-    return;
-  }
+  // comment Id is required to delete the comment
+  if (checks.isNuldefined(commentId)) return res.noParams();
 
   const t = await transaction();
   try {
-    await AnswerComment.destroy({
+    const deleted = await AnswerComment.destroy({
       where: { id: commentId },
       individualHooks: true,
       transaction: t,
@@ -177,43 +155,41 @@ router.delete("/", async (req, res) => {
 
     await t.commit();
 
-    serve(res, codes.NO_CONTENT);
+    if (deleted === 0)
+      return res.failure(codes.BAD_REQUEST, m.ID_WRONG_NO_ACCESS);
+
+    res.deleted();
   } catch (err) {
     console.log(err);
     await t.rollback();
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-    return;
+    res.serverError();
   }
 });
 
 router.get("/reply", async (req, res) => {
+  // get comment Id from the request query which to get replies of
   const { commentId, offset: rawOffset } = req.query;
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
 
-  if (checks.isNuldefined(commentId)) {
-    serve(res, codes.BAD_REQUEST, m.NO_COMMENT_ID);
-    return;
-  }
+  if (checks.isNuldefined(commentId)) return res.noParams();
 
   try {
-    const comments = await AnswerComment.findAll({
+    // get the replies of the comment with commentId as id
+    const replies = await AnswerComment.findAll({
       attributes: { exclude: ["replyId", "votes"] },
       where: { replyId: commentId },
       limit: LIMIT,
       offset,
-      order: simpleOrder("updatedAt"),
-      include: [userInfoInclusion],
+      order: [["updatedAt", "desc"]],
+      ...userInfoInclusion,
     });
 
-    serve(res, codes.OK, "Replies", {
-      replies: comments,
-      offsetNext: offset + comments.length,
-    });
+    res.ok(m.SUCCESS.REPLIES, { replies, offsetNext: offset + replies.length });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
@@ -221,76 +197,51 @@ router.get("/vote", async (req, res) => {
   const { commentId, offset: rawOffset } = req.query;
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
 
+  // commentId is required
+  if (checks.isNuldefined(commentId)) return res.noParams();
+
   try {
+    // get votes of which they are not zero
     const votes = await AnswerCommentVote.findAll({
-      where: { commentId },
+      where: { commentId, vote: { $ne: 0 } },
       limit: LIMIT,
       offset,
-      order: simpleOrder("createdAt"),
-      include: [userInfoInclusion],
+      order: [["createdAt", "desc"]],
+      ...userInfoInclusion,
     });
 
-    serve(res, codes.OK, "Votes", { votes, offsetNext: offset + votes.length });
+    res.ok(m.SUCCESS.VOTES, { votes, offsetNext: offset + votes.length });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
-router.post("/vote", async (req, res) => {
-  let { commentId, voteVal: num } = req.body;
+router.post("/upvote", async (req, res) => {
+  // get the commentId from the request body
+  const { commentId } = req.body;
+  const voteVal = 1;
 
-  try {
-    num = parseInt(num);
-  } catch (err) {
-    console.log(err);
-
-    serve(res, codes.BAD_REQUEST, m.INVALID_VALUES);
-    return;
-  }
-
-  const voteVal = num;
-
-  if (![-1, 0, 1].includes(voteVal)) {
-    serve(res, codes.BAD_REQUEST, m.INVALID_VALUES);
-    return;
-  }
-
-  let vote;
-  const t = await transaction();
-  try {
-    const find = await AnswerCommentVote.findOne({
-      where: { commentId, userId: req.user.id },
-    });
-
-    if (checks.isNuldefined(find))
-      vote = await AnswerCommentVote.create(
-        {
-          vote: voteVal,
-          commentId,
-          userId: req.user.id,
-        },
-        { transaction: t }
-      );
-    else
-      vote = await AnswerCommentVote.update(
-        { vote: voteVal },
-        {
-          where: { commentId, userId: req.user.id },
-          individualHooks: true,
-          transaction: t,
-        }
-      );
-
-    await t.commit();
-    serve(res, codes.OK, m.VOTED);
-  } catch (err) {
-    console.log(err);
-    await t.rollback();
-
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-  }
+  postVote(commentId, voteVal, req.user.id, res, AnswerCommentVote);
 });
+
+router.post("/downvote", async (req, res) => {
+  // get the commentId from the request body
+  const { commentId } = req.body;
+  const voteVal = -1;
+
+  postVote(commentId, voteVal, req.user.id, res, AnswerCommentVote);
+});
+
+router.post("/vote/reset", async (req, res) => {
+  // get the commentId from the request body
+  const { commentId } = req.body;
+  const voteVal = 0;
+
+  postVote(commentId, voteVal, req.user.id, res, AnswerCommentVote);
+});
+
+// votes will never get deleted
 
 export const CommentRouter = router;

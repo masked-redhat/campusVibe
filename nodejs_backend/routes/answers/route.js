@@ -4,27 +4,27 @@ import { simpleOrder } from "../posts/route.js";
 import { userInfoInclusion } from "../../db/sql/commands.js";
 import checks from "../../utils/checks.js";
 import { serve } from "../../utils/response.js";
-import MESSAGES from "../../constants/messages/global.js";
+import { MESSAGES as m } from "../../constants/messages/answer.js";
 import codes from "../../utils/codes.js";
 import transaction from "../../db/sql/transaction.js";
 import Answer from "../../models/ORM/forum/answers.js";
-import { literal } from "sequelize";
+import { literal, ValidationError } from "sequelize";
 import { CommentRouter } from "./comment.js";
 import AnswerVote from "../../models/ORM/forum/answer_votes.js";
 import Forum from "../../models/ORM/forum/forums.js";
-
-const router = Router();
+import { postVoteForAnswers } from "../../utils/comment.js";
 
 const LIMIT = limits.FORUM.ANSWER._;
 
+const router = Router();
+
 router.get("/", async (req, res) => {
+  // get the offset and forumId from request query
   const { offset: rawOffset, forumId } = req.query;
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
 
-  if (checks.isNuldefined(forumId)) {
-    serve(res, codes.BAD_REQUEST, "No forum Id in given parameters");
-    return;
-  }
+  // forum Id is required
+  if (checks.isNuldefined(forumId)) return res.noParams();
 
   try {
     const answers = await Answer.findAll({
@@ -36,104 +36,107 @@ router.get("/", async (req, res) => {
         [literal("upvotes - downvotes"), "desc"],
         ["updatedAt", "desc"],
       ],
-      include: [userInfoInclusion],
+      ...userInfoInclusion,
     });
 
-    serve(res, codes.OK, "Answers", {
-      answers,
-      offsetNext: offset + answers.length,
-    });
+    res.ok(m.SUCCESS, { answers, offsetNext: offset + answers.length });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
 router.post("/", async (req, res) => {
   const userId = req.user.id;
-  const { content, forumId } = req.body;
-  const images = req.files?.map((val) => val.filename) ?? [];
 
-  if (checks.isNuldefined(content) && checks.isNuldefined(images)) {
-    serve(res, codes.BAD_REQUEST, "There should be some content");
-    return;
-  }
+  // get content, images and forumId to post an answer
+  const { content = null, forumId = null, images = [] } = req.body;
 
-  if (checks.isNuldefined(forumId)) {
-    serve(res, codes.BAD_REQUEST, "No forum Id given");
-    return;
-  }
+  if (checks.isAnyValueNull([content, forumId])) return res.noParams();
 
   const t = await transaction();
   try {
+    // create answer for the forum
     const ans = await Answer.create(
-      {
-        userId,
-        forumId,
-        content,
-        images,
-      },
+      { userId, forumId, content, images },
       { transaction: t }
     );
 
     await t.commit();
-    serve(res, codes.CREATED, "Answered", { answerId: ans.id });
+
+    res.created(m.ANSWERED, { answerId: ans.id });
   } catch (err) {
     console.log(err);
     await t.rollback();
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-  }
-});
+    if (err instanceof ValidationError) return res.invalidParams();
 
-router.put("/", async (req, res) => {
-  const userId = req.user.id;
-  const { content, answerId } = req.body;
-  const images = req.files?.map((val) => val.filename) ?? [];
-
-  const updateData = { content, images };
-
-  try {
-    await Answer.update(updateData, { where: { userId, id: answerId } });
-
-    serve(res, codes.OK, "Answer Updated");
-  } catch (err) {
-    console.log(err);
-
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
 router.patch("/", async (req, res) => {
   const userId = req.user.id;
-  const { content, answerId } = req.body;
-  const images = req.files?.map((val) => val.filename) ?? [];
 
-  const updateData = {
-    ...(checks.isNuldefined(content) ? {} : { content }),
-    ...(checks.isNuldefined(images) ? {} : { images }),
-  };
+  // get parameters from request body
+  const { content, answerId, images = [] } = req.body;
+
+  // answerId is required
+  if (checks.isNuldefined(answerId)) return res.noParams();
+
+  // only update data that is provided
+  const updateData = Object.fromEntries(
+    Object.entries({ content, images }).filter(
+      ([_, value]) => !checks.isNuldefined(value)
+    )
+  );
 
   try {
     await Answer.update(updateData, { where: { userId, id: answerId } });
 
-    serve(res, codes.OK, "Answer Updated");
+    res.ok(m.ANSWER_UPDATED);
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    if (err instanceof ValidationError) return res.invalidParams();
+
+    res.serverError();
+  }
+});
+
+router.put("/", async (req, res) => {
+  const userId = req.user.id;
+
+  // get parameters from request body
+  const { content, answerId, images = [] } = req.body;
+
+  // answerId and content is required
+  if (checks.isAnyValueNull([content, answerId])) return res.noParams();
+
+  // update all data
+  const updateData = { content, images };
+
+  try {
+    await Answer.update(updateData, { where: { userId, id: answerId } });
+
+    res.ok(m.ANSWER_UPDATED);
+  } catch (err) {
+    console.log(err);
+
+    if (err instanceof ValidationError) return res.invalidParams();
+
+    res.serverError();
   }
 });
 
 router.delete("/", async (req, res) => {
   const userId = req.user.id;
+
+  // get answerId from request query
   const { answerId } = req.query;
 
-  if (checks.isNuldefined(answerId)) {
-    serve(res, codes.BAD_REQUEST, "No answer id given");
-    return;
-  }
+  if (checks.isNuldefined(answerId)) return res.noParams();
 
   const t = await transaction();
   try {
@@ -144,12 +147,13 @@ router.delete("/", async (req, res) => {
     });
 
     await t.commit();
-    serve(res, codes.NO_CONTENT);
+
+    res.deleted();
   } catch (err) {
     console.log(err);
     await t.rollback();
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
@@ -157,106 +161,73 @@ router.get("/vote", async (req, res) => {
   const { answerId, offset: rawOffset } = req.query;
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
 
+  // answerId is required
+  if (checks.isNuldefined(commentId)) return res.noParams();
+
   try {
+    // get votes of which they are not zero
     const votes = await AnswerVote.findAll({
-      where: { answerId },
+      where: { answerId, vote: { $ne: 0 } },
       limit: LIMIT,
       offset,
-      order: simpleOrder("updatedAt"),
-      include: [userInfoInclusion],
+      order: [["updatedAt", "desc"]],
+      ...userInfoInclusion,
     });
 
-    serve(res, codes.OK, "Votes", { votes, offsetNext: offset + votes.length });
+    res.ok(m.VOTES, { votes, offsetNext: offset + votes.length });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    res.serverError();
   }
 });
 
-router.post("/vote", async (req, res) => {
-  let { answerId, voteVal: num } = req.body;
+router.post("/upvote", async (req, res) => {
+  // get the answerId from the request body
+  const { answerId } = req.body;
+  const voteVal = 1;
 
-  try {
-    num = parseInt(num);
-  } catch (err) {
-    console.log(err);
-
-    serve(res, codes.BAD_REQUEST, m.INVALID_VALUES);
-    return;
-  }
-
-  const voteVal = num;
-
-  if (![-1, 0, 1].includes(voteVal)) {
-    serve(res, codes.BAD_REQUEST, m.INVALID_VALUES);
-    return;
-  }
-
-  let vote;
-  const t = await transaction();
-  try {
-    const find = await AnswerVote.findOne({
-      where: { answerId, userId: req.user.id },
-    });
-
-    if (checks.isNuldefined(find))
-      vote = await AnswerVote.create(
-        {
-          vote: voteVal,
-          answerId,
-          userId: req.user.id,
-        },
-        { transaction: t }
-      );
-    else
-      vote = await AnswerVote.update(
-        { vote: voteVal },
-        {
-          where: { answerId, userId: req.user.id },
-          individualHooks: true,
-          transaction: t,
-        }
-      );
-
-    await t.commit();
-    serve(res, codes.OK, "Voted");
-  } catch (err) {
-    console.log(err);
-    await t.rollback();
-
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-  }
+  postVoteForAnswers(answerId, voteVal, req.user.id, res, AnswerVote);
 });
 
-router.use("/comment", CommentRouter);
+router.post("/downvote", async (req, res) => {
+  // get the answerId from the request body
+  const { answerId } = req.body;
+  const voteVal = -1;
+
+  postVoteForAnswers(answerId, voteVal, req.user.id, res, AnswerVote);
+});
+
+router.post("/vote/reset", async (req, res) => {
+  // get the answerId from the request body
+  const { answerId } = req.body;
+  const voteVal = 0;
+
+  postVoteForAnswers(answerId, voteVal, req.user.id, res, AnswerVote);
+});
 
 router.post("/accept", async (req, res) => {
   const userId = req.user.id;
+
+  // get the answerId and forumId from request body
   const { answerId, forumId } = req.body;
 
-  if (checks.isNuldefined(answerId)) {
-    serve(res, codes.BAD_REQUEST, "No answerId in given parameters");
-    return;
-  }
-  if (checks.isNuldefined(forumId)) {
-    serve(res, codes.BAD_REQUEST, "No forumId in given parameters");
-    return;
-  }
+  if (checks.isAnyValueNull([answerId, forumId])) return res.noParams();
 
   const t = await transaction();
   try {
-    const find = await Forum.findOne({
+    // find if there exists a forum with given forumId
+    const forumFound = await Forum.findOne({
       where: { userId, id: forumId },
       transaction: t,
     });
 
-    if (checks.isNuldefined(find)) {
-      serve(res, codes.BAD_REQUEST, "No answer could be set");
+    if (checks.isNuldefined(forumFound)) {
       await t.rollback();
-      return;
+      return res.failure(codes.BAD_REQUEST, m.FORUM_ID_INVALID);
     }
 
+    // try updating the answer data: accepted = false -> true
     const [updated] = await Answer.update(
       { accepted: true },
       {
@@ -266,83 +237,75 @@ router.post("/accept", async (req, res) => {
       }
     );
 
+    // if nothing updated
     if (updated === 0) {
-      serve(
-        res,
-        codes.BAD_REQUEST,
-        "Give good answer Id which is valid AND not accepted"
-      );
       await t.rollback();
-      return;
+      return res.failure(codes.BAD_REQUEST, m.IDS_INVALID);
     }
 
     await t.commit();
-    serve(res, codes.OK, "Set as accepted answer");
+
+    res.ok(m.ACCEPTED.SET);
   } catch (err) {
     console.log(err);
     await t.rollback();
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    if (err instanceof ValidationError) return res.invalidParams();
+
+    res.serverError();
   }
 });
 
 router.delete("/accept", async (req, res) => {
   const userId = req.user.id;
-  const { answerId, forumId } = req.query;
 
-  if (checks.isNuldefined(answerId)) {
-    serve(res, codes.BAD_REQUEST, "No answerId in given parameters");
-    return;
-  }
-  if (checks.isNuldefined(forumId)) {
-    serve(res, codes.BAD_REQUEST, "No forumId in given parameters");
-    return;
-  }
+  // get the answerId and forumId from request body
+  const { answerId, forumId } = req.body;
+
+  if (checks.isAnyValueNull([answerId, forumId])) return res.noParams();
 
   const t = await transaction();
   try {
-    const find = await Forum.findOne({
+    // find if there exists a forum with given forumId
+    const forumFound = await Forum.findOne({
       where: { userId, id: forumId },
       transaction: t,
     });
 
-    if (checks.isNuldefined(find)) {
-      serve(res, codes.BAD_REQUEST, "No answer could be set");
+    if (checks.isNuldefined(forumFound)) {
       await t.rollback();
-      return;
+      return res.failure(codes.BAD_REQUEST, m.FORUM_ID_INVALID);
     }
 
+    // try updating the answer data: accepted = true -> false
     const [updated] = await Answer.update(
       { accepted: false },
       {
-        where: { id: answerId, forumId, accepted: true },
+        where: { id: answerId, forumId, accepted: false },
         transaction: t,
         individualHooks: true,
       }
     );
 
+    // if nothing updated
     if (updated === 0) {
-      serve(
-        res,
-        codes.BAD_REQUEST,
-        "Give good answer Id which is valid AND accepted"
-      );
       await t.rollback();
-      return;
+      return res.failure(codes.BAD_REQUEST, m.IDS_INVALID);
     }
 
     await t.commit();
-    serve(res, codes.OK, "Removed as accepted answer");
+
+    res.ok(m.ACCEPTED.REMOVE);
   } catch (err) {
     console.log(err);
     await t.rollback();
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
+    if (err instanceof ValidationError) return res.invalidParams();
+
+    res.serverError();
   }
 });
 
-router.all("*", (_, res) => {
-  res.sendStatus(405);
-});
+router.use("/comment", CommentRouter);
 
 export const AnswersRouter = router;
