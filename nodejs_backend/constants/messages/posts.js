@@ -1,10 +1,4 @@
 export const MESSAGES = {
-  NO_POST_ID: "No post Id given",
-  COMMENTED: "Commented on this post",
-  COMMENT_UPDATED: "Comment has been updated",
-  NO_COMMENT_ID: "No comment Id given",
-  VOTED: "Voted on this comment",
-
   SUCCESS: "Posts",
   CREATED: "Post created",
   ID_WRONG_NO_ACCESS:
