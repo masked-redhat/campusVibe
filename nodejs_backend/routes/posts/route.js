@@ -29,21 +29,33 @@ router.get("/", async (req, res) => {
         ? getUserIdFromUsername(username)
         : req.user.id;
 
-    // find and sort the posts
+    // find and sort the posts and add an attribute
+    // liked -> if the user of userId ever liked the post
     const posts = await Post.findAll({
       attributes: { exclude: ["userId"] },
       where: { userId },
       offset,
       limit: LIMIT,
       order: [["createdAt", "desc"]],
-      ...userInfoInclusion,
+      include: [
+        userInfoInclusion.include,
+        [
+          sequelize.literal(`(
+            SELECT EXISTS (
+              SELECT 1
+              FROM "PostLikes" AS "PostLike"
+              WHERE "PostLike"."postId" = "Post"."id"
+                AND "PostLike"."userId" = ${userId}
+            )
+          )`),
+          "liked",
+        ],
+      ],
     });
 
     res.ok(m.SUCCESS, { posts, offsetNext: posts.length + offset });
   } catch (err) {
     console.log(err);
-
-    if (err instanceof ValidationError) return res.invalidParams();
 
     res.serverError();
   }
@@ -153,8 +165,6 @@ router.delete("/", async (req, res) => {
   } catch (err) {
     console.log(err);
     await t.rollback();
-
-    if (err instanceof ValidationError) return res.invalidParams();
 
     res.serverError();
   }

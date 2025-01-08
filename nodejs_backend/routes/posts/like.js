@@ -1,88 +1,88 @@
 import { Router } from "express";
 import PostLike from "../../models/ORM/post/post_likes.js";
-import { ForeignKeyConstraintError, UniqueConstraintError } from "sequelize";
+import {
+  ForeignKeyConstraintError,
+  UniqueConstraintError,
+  ValidationError,
+} from "sequelize";
 import codes from "../../utils/codes.js";
-import MESSAGES from "../../constants/messages/global.js";
 import { MESSAGES as m } from "../../constants/messages/posts.js";
-import { serve } from "../../utils/response.js";
-import { simpleOrder } from "./route.js";
 import checks from "../../utils/checks.js";
 import limits from "../../constants/limits.js";
 import transaction from "../../db/sql/transaction.js";
 import { userInfoInclusion } from "../../db/sql/commands.js";
 
-const router = Router();
-
 const LIMIT = limits.POST.LIKE;
+
+const router = Router();
 
 router.get("/", async (req, res) => {
   const { postId, offset: rawOffset } = req.query;
   const offset = checks.isNuldefined(rawOffset) ? 0 : parseInt(rawOffset);
 
+  // if no post Id given
+  if (checks.isNuldefined(postId)) return res.noParams();
+
   let likes;
   try {
+    // find all the likes of the users
     likes = await PostLike.findAll({
       attributes: ["id", "createdAt"],
       where: { postId },
-      limit: LIMIT,
       offset,
-      order: simpleOrder("updatedAt"),
-      include: [userInfoInclusion
-      ],
+      limit: LIMIT,
+      order: [["updatedAt", "desc"]],
+      ...userInfoInclusion,
     });
 
-    if (likes.length === 0) {
-      serve(res, codes.NOT_FOUND, m.NO_LIKES);
-      return;
-    }
+    if (likes.length === 0)
+      return res.failure(codes.NOT_FOUND, m.LIKES_UNAVAILABLE);
+
+    res.ok(m.LIKED_BY, { likes, offsetNext: likes.length + offset });
   } catch (err) {
     console.log(err);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-    return;
+    // if post Id is not of appropriate type
+    if (err instanceof ValidationError) return res.invalidParams();
+
+    res.serverError();
   }
-  serve(res, codes.OK, "Liked by", {
-    likes,
-    offsetNext: likes.length + offset,
-  });
 });
 
 router.post("/", async (req, res) => {
+  // get the post Id from request body
   const { postId } = req.body;
+
+  if (checks.isNuldefined(postId)) return res.noParams();
 
   const t = await transaction();
   try {
-    const like = await PostLike.create(
-      {
-        postId,
-        userId: req.user.id,
-      },
-      { transaction: t }
-    );
+    await PostLike.create({ postId, userId: req.user.id }, { transaction: t });
+
     await t.commit();
+
+    res.ok(m.LIKED);
   } catch (err) {
     console.log(err);
     await t.rollback();
 
-    if (err instanceof UniqueConstraintError) {
-      serve(res, codes.CONFLICT, m.ALREADY_LIKED);
-      return;
-    }
+    if (err instanceof UniqueConstraintError)
+      return res.failure(codes.CONFLICT, m.ALREADY_LIKED);
 
-    if (err instanceof ForeignKeyConstraintError) {
-      serve(res, codes.NOT_FOUND, m.ID_WRONG_NO_ACCESS);
-      return;
-    }
+    if (err instanceof ForeignKeyConstraintError)
+      return res.failure(codes.NOT_FOUND, m.ID_WRONG_NO_ACCESS);
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-    return;
+    if (err instanceof ValidationError) return res.invalidParams();
+
+    res.serverError();
   }
-
-  serve(res, codes.OK, m.LIKED);
 });
 
 router.delete("/", async (req, res) => {
+  // get post Id from request query
   const { postId } = req.query;
+
+  if (checks.isNuldefined(postId)) return res.noParams();
 
   const t = await transaction();
   try {
@@ -95,21 +95,19 @@ router.delete("/", async (req, res) => {
       transaction: t,
     });
 
-    if (like === 0) {
-      serve(res, codes.BAD_REQUEST, m.ID_WRONG_NO_ACCESS);
-      return;
-    }
+    if (like === 0) return res.failure(codes.BAD_REQUEST, m.NOT_LIKED);
 
     await t.commit();
+
+    res.ok(m.UNLIKED);
   } catch (err) {
     console.log(err);
     await t.rollback();
 
-    serve(res, codes.INTERNAL_SERVER_ERROR, MESSAGES.SERVER_ERROR);
-    return;
-  }
+    if (err instanceof ValidationError) return res.invalidParams();
 
-  serve(res, codes.OK, m.UNLIKED);
+    res.serverError();
+  }
 });
 
 export const LikeRouter = router;
