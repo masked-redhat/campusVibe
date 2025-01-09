@@ -55,7 +55,7 @@ router.get("/", async (req, res) => {
       ],
       limit: LIMIT,
       offset,
-      ...userInfoInclusion,
+      include: [userInfoInclusion]
     });
 
     res.ok(m.SUCCESS, { posts, offsetNext: offset + posts.length });
@@ -102,7 +102,7 @@ router.get("/forum", async (req, res) => {
       ],
       limit: LIMIT,
       offset,
-      ...userInfoInclusion,
+      include: [userInfoInclusion]
     });
 
     res.ok(m.SUCCESS, { forums, offsetNext: offset + forums.length });

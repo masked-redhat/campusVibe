@@ -35,7 +35,7 @@ router.get("/", async (req, res) => {
       offset,
       limit: LIMIT,
       order: [["updatedAt", "desc"]],
-      ...userInfoInclusion,
+      include: [userInfoInclusion]
     });
 
     res.ok(m.SUCCESS.FORUMS, { forums, offsetNext: offset + forums.length });

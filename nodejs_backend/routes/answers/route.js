@@ -34,7 +34,7 @@ router.get("/", async (req, res) => {
         [literal("upvotes - downvotes"), "desc"],
         ["updatedAt", "desc"],
       ],
-      ...userInfoInclusion,
+      include: [userInfoInclusion]
     });
 
     res.ok(m.SUCCESS, { answers, offsetNext: offset + answers.length });
@@ -169,7 +169,7 @@ router.get("/vote", async (req, res) => {
       limit: LIMIT,
       offset,
       order: [["updatedAt", "desc"]],
-      ...userInfoInclusion,
+      include: [userInfoInclusion]
     });
 
     res.ok(m.VOTES, { votes, offsetNext: offset + votes.length });

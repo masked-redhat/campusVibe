@@ -38,7 +38,7 @@ router.get("/", async (req, res) => {
       limit: LIMIT,
       order: [["createdAt", "desc"]],
       // TODO: add a field if liked by user
-      ...userInfoInclusion,
+      include: [userInfoInclusion],
     });
 
     res.ok(m.SUCCESS, { posts, offsetNext: posts.length + offset });

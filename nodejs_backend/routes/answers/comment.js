@@ -37,7 +37,7 @@ router.get("/", async (req, res) => {
       limit: LIMIT,
       offset,
       order,
-      ...userInfoInclusion,
+      include: [userInfoInclusion]
     });
 
     res.ok(m.SUCCESS.COMMENTS, {
@@ -182,7 +182,7 @@ router.get("/reply", async (req, res) => {
       limit: LIMIT,
       offset,
       order: [["updatedAt", "desc"]],
-      ...userInfoInclusion,
+      include: [userInfoInclusion]
     });
 
     res.ok(m.SUCCESS.REPLIES, { replies, offsetNext: offset + replies.length });
@@ -207,7 +207,7 @@ router.get("/vote", async (req, res) => {
       limit: LIMIT,
       offset,
       order: [["createdAt", "desc"]],
-      ...userInfoInclusion,
+      include: [userInfoInclusion]
     });
 
     res.ok(m.SUCCESS.VOTES, { votes, offsetNext: offset + votes.length });

@@ -32,7 +32,7 @@ router.get("/", async (req, res) => {
       offset,
       limit: LIMIT,
       order: [["updatedAt", "desc"]],
-      ...userInfoInclusion,
+      include: [userInfoInclusion]
     });
 
     if (likes.length === 0)

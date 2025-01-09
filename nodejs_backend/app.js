@@ -9,6 +9,8 @@ import authorization from "./middlewares/auth.js";
 import { syncDB } from "./sync/syncing.js";
 import upload from "./middlewares/parser.js";
 import rateLimiter from "./constants/rate.js";
+import { LoginRouter } from "./routes/login/route.js";
+import "./utils/response.js";
 const r = Routes,
   auth = authorization.validateUser;
 
@@ -29,10 +31,10 @@ app.use(express.static(env.backend.PUBLIC.LOCATION._));
 // Global Middlewares
 app.use(express.json());
 app.use(cookieParser());
-app.use(upload.any());
+app.use(upload.none());
 
 // Routes
-app.use("/login", rateLimiter.login, r.LoginRouter);
+app.use("/login", rateLimiter.login, LoginRouter);
 app.use("/email", r.EmailRouter);
 app.use("/logout", auth, r.LogoutRouter);
 app.use("/posts", auth, r.PostsRouter);
@@ -46,6 +48,11 @@ app.use("/feed", auth, r.FeedRouter);
 app.use("/articles", auth, r.ArticlesRouter);
 app.use("/profile", auth, r.ProfileRouter);
 app.use("/feedback", auth, r.FeedbackRouter);
+app.use("/upload", auth, r.UploadRouter);
+
+app.all("*", (_, res) => {
+  res.noMethod();
+});
 
 // Start the application
 app.listen(port, () => {

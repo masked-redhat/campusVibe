@@ -16,7 +16,7 @@ router.get("/", async (req, res) => {
     const post = await Post.findOne({
       attributes: { exclude: ["id", "userId"] },
       where: { id: postId },
-      ...userInfoInclusion,
+      include: [userInfoInclusion]
     });
 
     res.ok(`Post with Id ${postId}`, { post });

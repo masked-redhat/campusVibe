@@ -8,7 +8,7 @@ import { RequestRouter } from "./request.js";
 import limits from "../../constants/limits.js";
 import {
   getUserIdFromUsername,
-  userInfoInclusionByAlias,
+  userInfoByAlias,
 } from "../../db/sql/commands.js";
 import transaction from "../../db/sql/transaction.js";
 
@@ -35,8 +35,8 @@ router.get("/", async (req, res) => {
       offset,
       limit: LIMIT,
       include: [
-        userInfoInclusionByAlias(alias.userId, "userId").include,
-        userInfoInclusionByAlias(alias.friendId, "friendId").include,
+        userInfoByAlias(alias.userId, "userId"),
+        userInfoByAlias(alias.friendId, "friendId"),
       ],
     });
 

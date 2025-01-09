@@ -24,7 +24,7 @@ router.get("/", async (req, res) => {
       limit: LIMIT,
       offset,
       order: [["createdAt", "desc"]],
-      ...userInfoInclusion,
+      include: [userInfoInclusion]
     });
 
     res.ok(m.SUCCESS.VOTES, { votes, offsetNext: offset + votes.length });
