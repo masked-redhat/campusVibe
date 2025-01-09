@@ -62,7 +62,7 @@ router.post("/new", async (req, res) => {
   if (checks.isAnyValueNull([username, password, email])) return res.noParams();
 
   // check if email is valid
-  const validEmail = await Email.validate(email)?.valid;
+  const validEmail = (await Email.validate(email))?.valid;
   if (!checks.isTrue(validEmail))
     return res.failure(codes.BAD_REQUEST, m.EMAIL_INVALID);
 
