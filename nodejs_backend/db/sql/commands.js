@@ -2,29 +2,26 @@ import User from "../../models/ORM/user.js";
 import Profile from "../../models/ORM/profile.js";
 
 export const userInfoInclusion = {
-  include: {
-    model: User,
-    foreignKey: "userId",
-    attributes: ["username"],
-    include: [
-      {
-        model: Profile,
-        attributes: [
-          "fullName",
-          "firstName",
-          "lastName",
-          "studentType",
-          "instituteName",
-        ],
-      },
-    ],
-  },
+  model: User,
+  foreignKey: "userId",
+  attributes: ["username"],
+  include: [
+    {
+      model: Profile,
+      attributes: [
+        "fullName",
+        "firstName",
+        "lastName",
+        "studentType",
+        "instituteName",
+      ],
+    },
+  ],
 };
 
-export const userInfoInclusionByAlias = (alias, foreignKey = "userId") => {
-  const userInfo = { ...userInfoInclusion.include, foreignKey, as: alias };
-  const inclusion = { include: userInfo };
-  return inclusion;
+export const userInfoByAlias = (alias, foreignKey = "userId") => {
+  const info = { ...userInfoInclusion, foreignKey, as: alias };
+  return info;
 };
 
 export const getUserIdFromUsername = async () => {
