@@ -60,8 +60,12 @@ PostComment.belongsTo(User, { foreignKey });
 User.hasMany(PostCommentVote, { foreignKey, onDelete: "CASCADE" });
 PostCommentVote.belongsTo(User, { foreignKey });
 
-User.hasMany(Friend, { as: alias.userId, foreignKey, onDelete: "CASCADE" });
-Friend.belongsTo(User, { as: alias.userId, foreignKey });
+User.hasMany(Friend, {
+  as: alias.userId,
+  foreignKey: foreignKey,
+  onDelete: "CASCADE",
+});
+Friend.belongsTo(User, { as: alias.userId, foreignKey: foreignKey });
 
 User.hasMany(Friend, {
   as: alias.friendId,
